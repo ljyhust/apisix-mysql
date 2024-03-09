@@ -76,7 +76,7 @@ deployment:
     port: 3306
     database: apisix
     user: jeang
-    password: ljyhust
+    password: jeang
     charset: utf8
 
 nginx_config:
