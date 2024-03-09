@@ -90,7 +90,7 @@ function _M.http_init(args)
     if not ok then
         core.log.error("failed to enable privileged_agent: ", err)
     end
-
+    -- 加载yaml配置文件：插件配置、lua相关配置等，并缓存文件最新修改时间
     if core.config.init then
         local ok, err = core.config.init()
         if not ok then
@@ -104,6 +104,7 @@ end
 
 
 function _M.http_init_worker()
+    core.log.info("worker init ...")
     local seed, err = core.utils.get_seed_from_urandom()
     if not seed then
         core.log.warn('failed to get seed from urandom: ', err)
@@ -137,6 +138,7 @@ function _M.http_init_worker()
 
     require("apisix.debug").init_worker()
 
+    -- 启动配置如config_etcd或config_ymal配置启动  
     if core.config.init_worker then
         local ok, err = core.config.init_worker()
         if not ok then
@@ -535,6 +537,24 @@ function _M.http_access_phase()
     debug.dynamic_debug(api_ctx)
 
     local uri = api_ctx.var.uri
+
+    if (uri == '/test') then
+        local yaml_local_config = core.config.apisix_config
+        for k, v in pairs(yaml_local_config) do
+            core.log.info("ymal key ", k, ", type_value ", type(v))
+            if type(v) ~= 'table' then
+                core.log.info("ymal key ", k, ", value ", v)
+            end
+
+            if type(v) == 'table' and v then
+                for k1, v2 in pairs(v) do
+                    core.log.info("subtree v type is ", type(v2))
+                end
+            end
+        end
+        core.log.info("res ", core.json.encode(yaml_local_config))
+        return core.response.exit(200, core.json.encode(yaml_local_config))
+    end
     if local_conf.apisix then
         if local_conf.apisix.delete_uri_tail_slash then
             if str_byte(uri, #uri) == str_byte("/") then

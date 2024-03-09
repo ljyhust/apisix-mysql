@@ -43,6 +43,10 @@ local _M = {
 
 
 local function serialise_obj(data)
+    if not data then
+        return "null"
+    end
+
     if type(data) == "function" or type(data) == "userdata"
        or type(data) == "cdata"
        or type(data) == "table" then

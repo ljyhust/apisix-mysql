@@ -17,6 +17,7 @@
 # limitations under the License.
 #
 
+# 判断文件存在&size>0
 if [ -s './apisix/cli/apisix.lua' ]; then
     # install via source
     APISIX_LUA=./apisix/cli/apisix.lua
@@ -40,7 +41,9 @@ if [[ -e $OR_EXEC && "$OR_VER" -ge 119 ]]; then
     # find the luajit binary of openresty
     LUAJIT_BIN="$ROOT"/luajit/bin/luajit
 
-    # use the luajit of openresty
+    # use the luajit of openresty 打印&执行
+    # 效果 /usr/local/openresty//luajit/bin/luajit ./apisix/cli/apisix.lua init
+    # luajit执行时是否会启动openresty???
     echo "$LUAJIT_BIN $APISIX_LUA $*"
     exec $LUAJIT_BIN $APISIX_LUA $*
 else

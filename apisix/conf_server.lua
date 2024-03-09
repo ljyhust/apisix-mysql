@@ -52,13 +52,15 @@ local function create_resolved_result(server)
     }
 end
 
-
+--- 加载etcd配置
 function _M.init()
     local conf = fetch_local_conf()
+    core.log.info("默认加载etcd...")
     if not (conf.deployment and conf.deployment.etcd) then
+        core.log.info("非etcd配置...")
         return
     end
-
+    -- 如果要扩展mysql配置，则在这里添加实现mysql配置解析
     local etcd = conf.deployment.etcd
     if etcd.health_check_timeout then
         HEALTH_CHECK_DURATION_SECOND = etcd.health_check_timeout

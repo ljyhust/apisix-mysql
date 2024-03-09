@@ -82,6 +82,7 @@ function _M.http_init_worker()
 
     local router_http = require("apisix.http.router." .. router_http_name)
     attach_http_router_common_methods(router_http)
+    -- filter在哪里会调用？
     router_http.init_worker(filter)
     _M.router_http = router_http
 

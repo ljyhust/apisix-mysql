@@ -73,13 +73,13 @@ local function read_apisix_yaml(premature, pre_mtime)
         log.error("failed to fetch ", apisix_yaml_path, " attributes: ", err)
         return
     end
-
-    -- log.info("change: ", json.encode(attributes))
+    -- 监控yaml文件变更时间
+    log.info("lfs attributes change: ", json.encode(attributes))
     local last_change_time = attributes.change
     if apisix_yaml_ctime == last_change_time then
         return
     end
-
+    log.info("read_apisix_yaml_file ", apisix_yaml_path, ", last_change_time ", last_change_time)
     local f, err = io.open(apisix_yaml_path, "r")
     if not f then
         log.error("failed to open file ", apisix_yaml_path, " : ", err)
@@ -115,6 +115,8 @@ local function read_apisix_yaml(premature, pre_mtime)
 
     apisix_yaml = apisix_yaml_new
     apisix_yaml_ctime = last_change_time
+    _M.apisix_config = apisix_yaml_new
+    log.info("last_change_time ", last_change_time, ", resolve_apisix_yaml_file ", json.encode(_M.apisix_config))
 end
 
 
@@ -133,14 +135,18 @@ local function sync_data(self)
     end
 
     local items = apisix_yaml[self.key]
+    log.info("apisix_yaml: ", json.delay_encode(apisix_yaml))
     log.info(self.key, " items: ", json.delay_encode(items))
     if not items then
+        -- 创建数组:size = 8
         self.values = new_tab(8, 0)
+        -- 创建map:size=8
         self.values_hash = new_tab(0, 8)
         self.conf_version = apisix_yaml_ctime
         return true
     end
 
+    -- 原self.values数据
     if self.values then
         for _, item in ipairs(self.values) do
             config_util.fire_all_clean_handlers(item)
@@ -186,6 +192,7 @@ local function sync_data(self)
         end
 
     else
+        -- 创建values  list 和 map
         self.values = new_tab(#items, 0)
         self.values_hash = new_tab(0, #items)
 
@@ -205,6 +212,7 @@ local function sync_data(self)
                             key = "/" .. self.key .. "/" .. key}
 
             if data_valid and self.item_schema then
+                -- 检查格式
                 data_valid, err = check_schema(self.item_schema, item)
                 if not data_valid then
                     log.error("failed to check item data of [", self.key,
@@ -302,6 +310,7 @@ end
 
 
 function _M.new(key, opts)
+    log.info("创建实例...", key)
     local local_conf, err = config_local.local_conf()
     if not local_conf then
         return nil, err
@@ -339,7 +348,7 @@ function _M.new(key, opts)
         if not key then
             return nil, "missing `key` argument"
         end
-
+        log.info("调用sync_data同步")
         local ok, ok2, err = pcall(sync_data, obj)
         if not ok then
             err = ok2
@@ -375,6 +384,9 @@ function _M.fetch_created_obj(key)
     return created_obj[sub_str(key, 2)]
 end
 
+function _M.yaml_config(self)
+    return self.apisix_config
+end
 
 function _M.init()
     read_apisix_yaml()
@@ -384,7 +396,7 @@ end
 
 function _M.init_worker()
     -- sync data in each non-master process
-    ngx.timer.every(1, read_apisix_yaml)
+    ngx.timer.every(30, read_apisix_yaml)
 
     return true
 end

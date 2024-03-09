@@ -752,8 +752,10 @@ local function start(env, ...)
 
     -- check running
     local pid_path = env.apisix_home .. "/logs/nginx.pid"
+    print("===> apisix_pid_path is ", pid_path)
     local pid = util.read_file(pid_path)
     pid = tonumber(pid)
+    print("===> openresty pid valid? ", pid)
     if pid then
         if pid <= 0 then
             print("invalid pid")
@@ -793,7 +795,7 @@ local function start(env, ...)
     -- TODO: more logs for APISIX cli could be added using this feature
     parser:flag("--verbose", "show init_etcd debug information")
     local args = parser:parse()
-
+    print("===> parser args ", args)
     local customized_yaml = args["config"]
     if customized_yaml then
         profile.apisix_home = env.apisix_home .. "/"
@@ -821,7 +823,7 @@ local function start(env, ...)
     if env.deployment_role ~= "data_plane" then
         init_etcd(env, args)
     end
-
+    -- 启动openrestry ==> master process
     util.execute_cmd(env.openresty_args)
 end
 

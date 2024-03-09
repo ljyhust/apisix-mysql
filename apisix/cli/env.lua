@@ -29,6 +29,7 @@ local tonumber = tonumber
 
 return function (apisix_home, pkg_cpath_org, pkg_path_org)
     -- ulimit setting should be checked when APISIX starts
+    print("===> apisix_home is ", apisix_home)
     local res, err = util.execute_cmd("ulimit -n")
     if not res then
         error("failed to exec ulimit cmd \'ulimit -n \', err: " .. err)
@@ -42,8 +43,10 @@ return function (apisix_home, pkg_cpath_org, pkg_path_org)
     -- only for developer, use current folder as working space
     local is_root_path = false
     local script_path = arg[0]
+    print("===> env arg[0] ", script_path)
     if script_path:sub(1, 2) == './' then
         apisix_home = util.trim(util.execute_cmd("pwd"))
+        print("====> develop apisix home is ", apisix_home)
         if not apisix_home then
             error("failed to fetch current path")
         end

@@ -14,7 +14,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
-
+-- local core = require("apisix.core")
 local yaml = require("tinyyaml")
 local profile = require("apisix.core.profile")
 local util = require("apisix.cli.util")
@@ -217,7 +217,7 @@ function _M.read_yaml_conf(apisix_home)
     if not default_conf_yaml then
         return nil, err
     end
-
+    -- core.log.info("加载default-yaml配置")
     local default_conf = yaml.parse(default_conf_yaml)
     if not default_conf then
         return nil, "invalid config-default.yaml file"
@@ -228,7 +228,7 @@ function _M.read_yaml_conf(apisix_home)
     if not user_conf_yaml then
         return nil, err
     end
-
+    -- core.log.info("加载conf yaml配置")
     local is_empty_file = true
     for line in str_gmatch(user_conf_yaml .. '\n', '(.-)\r?\n') do
         if not is_empty_yaml_line(line) then
@@ -268,6 +268,8 @@ function _M.read_yaml_conf(apisix_home)
                 default_conf.deployment.config_provider = "yaml"
             elseif default_conf.deployment.role_data_plane.config_provider == "xds" then
                 default_conf.deployment.config_provider = "xds"
+            elseif default_conf.deployment.role_data_plane.config_provider == "mysql" then
+                default_conf.deployment.config_provider = "mysql"
             else
                 default_conf.etcd = default_conf.deployment.role_data_plane.control_plane
             end

@@ -135,6 +135,7 @@ end
 
 
 function _M.init_worker(filter)
+    core.log.info("在core.config中创建router 对象，其中/routes为yaml或etcd配置...")
     local user_routes, err = core.config.new("/routes", {
             automatic = true,
             item_schema = core.schema.route,
