@@ -77,3 +77,9 @@ deployment:
 ### 启动
 参考apisix官网
 https://apisix.apache.org/zh/docs/apisix/3.2/building-apisix/
+
+
+## 计划
+目前仅支持配置route路由，其它配置如Service、plugins等待启动
+- [ ] 配置管理系统
+- [ ] service、plugins配置项
