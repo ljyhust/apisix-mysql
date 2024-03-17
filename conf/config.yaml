@@ -75,8 +75,8 @@ deployment:
     host: 127.0.0.1
     port: 3306
     database: apisix
-    user: jeang
-    password: jeang
+    user: xxx
+    password: xxx
     charset: utf8
 
 nginx_config:

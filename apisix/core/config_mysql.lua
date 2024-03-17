@@ -71,13 +71,12 @@ local mt = {
 
 local apisix_yaml
 local apisix_yaml_ctime
-
--- mysql变量
+-- mysql db 连接配置
 local apisix_mysql_config
-local route_last_ctime = "0000-00-00 00:00:00"
+-- local route_last_ctime = "0000-00-00 00:00:00"
 
 local query_routes_sql_template = [[
-    select uri, route_name, enable_websocket, upstream_code
+    select id, uri, route_name, method_list, enable_websocket, vars, upstream_code
     from apisix.routes where delete_flag = 0 and update_time between '%s' and '%s'
 ]]
 
@@ -108,10 +107,12 @@ local query_upstreams_sql_template = [[
     ]
 --]]
 ---@param self 本模块指针
-local function query_routes(last_fetch_time, self)
-    local nowStr = os.date("%Y-%m-%d %H:%M:%S", last_fetch_time)
-    if route_last_ctime == nowStr then
-        return
+local function query_routes(fetch_start_time, fetch_end_time, self)
+    -- local nowStr = os.date("%Y-%m-%d %H:%M:%S", ngx.time())
+    local nowStr = os.date("%Y-%m-%d %H:%M:%S", fetch_end_time)
+    local route_last_ctime = "0000-00-00 00:00:00"
+    if nil ~= fetch_start_time then
+        route_last_ctime = os.date("%Y-%m-%d %H:%M:%S", fetch_start_time)
     end
 
     local db_cli, err = mysql:new()
@@ -120,8 +121,7 @@ local function query_routes(last_fetch_time, self)
         return
     end
     db_cli:set_timeout(3000)
-    
-    log.info("mysql config is ", json.delay_encode(apisix_mysql_config))
+
     local ok, err, errcode, sqlstate = db_cli:connect(apisix_mysql_config)
     if not ok then
         log.error("failed to connect mysql: ", err, ", ", errcode, ", ", sqlstate)
@@ -136,26 +136,27 @@ local function query_routes(last_fetch_time, self)
         return    
     end
 
-    if not #res then
-        log.info("not routes info")
-        route_last_ctime = nowStr
+    if not res or nil == next(res) then
+        log.info("no new routes info")
         return
     end
 
-    local route_map = new_tab(0, 1)
+    local route_list = res
+    local route_map = new_tab(0, #route_list)
     local upstream_list = new_tab(1, 0)
-    for i, route in ipairs(res) do
+    for i, route in ipairs(route_list) do
         insert_tab(upstream_list, "'" .. route["upstream_code"] .. "'")
-        route_map[route.uri] = route
-        -- route特殊处理
         route.enable_websocket = (route.enable_websocket == 1 or false)
+        if route.vars then
+            route.vars = json.decode(route.vars)
+        end
+        route_map["r" .. route.id] = route
     end
     
     -- 查询upstream
     local upstream_str = table.concat(upstream_list, ",")
     local query_upstreams_sql = format(query_upstreams_sql_template, upstream_str)
     local res_upstream, err_upstream, errcode_upstream, sqlstate_upstream = db_cli:query(query_upstreams_sql)
-    log.info("query upstream-sql ", query_upstreams_sql)
     if not res_upstream then
         log.info("query upstream config")
         return
@@ -185,16 +186,16 @@ local function query_routes(last_fetch_time, self)
         upstream_map[v.upstream_code].nodes[v.node_address] = v.weight
         -- -- 如果已经存在，把nodes追加进去
         -- if upstream_map[v.upstream_code] then
-        --     upstream_map[v.upstream_code].nodes[v.node_address] = v.weight
+        --     upstream_map[v.upstream_code].nodes[v.node_address] = v.node_port
         -- else
         --     -- 不存在，新建nodes
         --     upstream_map[v.upstream_code] = v
         --     v.nodes = {}
-        --     v.nodes[v.node_address] = v.weight
+        --     v.nodes[v.node_address] = v.node_port
         -- end
     end
 
-    for k, v in pairs(route_map) do
+    for i, v in ipairs(route_list) do
         local uri_upstream = upstream_map[v.upstream_code]
         if nil ~= uri_upstream and uri_upstream then
             v.upstream = uri_upstream
@@ -202,25 +203,65 @@ local function query_routes(last_fetch_time, self)
     end
 
     -- 按json格式封装数据 route_list
-    local num_uri = nkeys_tab(route_map)
-    log.info("num of uri is ", num_uri)
+    -- local num_uri = #route_list
+    -- log.info("num of uri is ", num_uri)
 
-    local route_list = new_tab(num_uri, 0)
-    local route_idx_map = new_tab(0, num_uri)
+    -- local routes_hash = new_tab(0, num_uri)
 
-    for k, v in pairs(route_map) do
-        insert_tab(route_list, v)
-        route_idx_map[k] = #route_map
-    end
+    -- for k, v in pairs(route_map) do
+    --     insert_tab(route_list, v)
+    --     route_hash[k] = #route_list
+    -- end
 
-    log.info("query routes res", json.delay_encode(route_map))
+    log.info("query routes list ", json.delay_encode(route_list), ", ", json.delay_encode(route_map))
     if not err then
         db_cli:set_keepalive(120 * 1000, 1)
     end
 
-    return route_list
+    return route_list, route_map
 end
 
+-- 获取最新更新的routes
+local function new_merge_change_routes(start_ctime, end_ctime, old_routes)
+    local u_routes, u_route_map = query_routes(start_ctime, end_ctime)
+    -- 无变更
+    if not u_routes or next(u_routes) == nil then
+        log.info("routes配置无变更....")
+        return nil
+    end
+    log.info("routes 配置变更  ", json.delay_encode(u_routes))
+
+    if nil == old_routes or next(old_routes) == nil then
+        return u_routes
+    end
+
+    log.info("增量合并: ", json.delay_encode(u_route_map, true))
+    -- @TODO增量合并，先复制后转引用，防止并发内存数据中断
+    -- clone
+    local new_routes = new_tab(1, 0)
+
+    log.info("合并之前: ", json.delay_encode(old_routes, true))
+    for i, v in ipairs(old_routes) do
+        local key = "r" .. v.id
+        if u_route_map[key] then
+            -- 如果存在，则替换新的
+            insert_tab(new_routes, u_route_map[key])
+            u_route_map[key] = {}
+        else
+            -- 如果不存在
+            insert_tab(new_routes, v)
+        end
+    end
+    -- 新增部分
+    log.info("新增部分配置: ", json.delay_encode(u_route_map, true))
+    for k, v in pairs(u_route_map) do
+        if v and next(v) ~= nil then
+            insert_tab(new_routes, v)
+        end
+    end
+    log.info("合并之后: ", json.delay_encode(new_routes, true))
+    return new_routes
+end
 
 -- @TODO 第一次获取全部数据；后几次根据时间增量刷新
 local function read_apisix_mysql(premature, pre_mtime)
@@ -228,76 +269,25 @@ local function read_apisix_mysql(premature, pre_mtime)
         return
     end
 
-    local last_fetch_time = ngx.time()
-
-    local routes = query_routes(last_fetch_time)
-
-    if not routes then
-        log.info("无变化 ", last_fetch_time)
-        return
+    local current_time = ngx.time()
+    if apisix_yaml_ctime == current_time then
+        log.info("无时间变化，不拉最新数据")
+       return 
     end
 
-    local apisix_mysql_new = {}
-    apisix_mysql_new['routes'] = routes
-
-    apisix_yaml = apisix_mysql_new
-    apisix_yaml_ctime = last_fetch_time
-end
-
-
--- @TODO 定时任务调用时，如何改成增量
-
-local function read_apisix_yaml(premature, pre_mtime)
-    if premature then
-        return
-    end
-    local attributes, err = lfs.attributes(apisix_yaml_path)
-    if not attributes then
-        log.error("failed to fetch ", apisix_yaml_path, " attributes: ", err)
-        return
-    end
-    -- 监控yaml文件变更时间
-    log.info("lfs attributes change: ", json.encode(attributes))
-    local last_change_time = attributes.change
-    if apisix_yaml_ctime == last_change_time then
-        return
-    end
-    log.info("read apisix_yaml_file ", apisix_yaml_path)
-    local f, err = io.open(apisix_yaml_path, "r")
-    if not f then
-        log.error("failed to open file ", apisix_yaml_path, " : ", err)
-        return
+    local old_routes = nil
+    if nil ~= apisix_yaml and next(apisix_yaml) ~= nil then
+        old_routes = apisix_yaml["routes"]
     end
 
-    f:seek('end', -10)
-    local end_flag = f:read("*a")
-    -- log.info("flag: ", end_flag)
-    local found_end_flag = re_find(end_flag, [[#END\s*$]], "jo")
-
-    if not found_end_flag then
-        f:close()
-        log.warn("missing valid end flag in file ", apisix_yaml_path)
-        return
+    local new_routes = new_merge_change_routes(apisix_yaml_ctime, current_time, old_routes)
+    
+    if nil == apisix_yaml then
+        apisix_yaml = {}
     end
-
-    f:seek('set')
-    local yaml_config = f:read("*a")
-    f:close()
-
-    local apisix_yaml_new = yaml.parse(yaml_config)
-    if not apisix_yaml_new then
-        log.error("failed to parse the content of file " .. apisix_yaml_path)
-        return
-    end
-
-    local ok, err = file.resolve_conf_var(apisix_yaml_new)
-    if not ok then
-        log.error("failed: failed to resolve variables:" .. err)
-        return
-    end
-
-    apisix_yaml = apisix_yaml_new
-    apisix_yaml_ctime = last_change_time
+    apisix_yaml.routes = new_routes
+    apisix_yaml_ctime = current_time
+    log.info("当前配置为 ", json.delay_encode(apisix_yaml, true))
 end
  
 local function sync_data(self)
