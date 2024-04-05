@@ -5,10 +5,9 @@
 `curl https://raw.githubusercontent.com/apache/apisix/${分支}utils/install-dependencies.sh -sL | bash -`
 
 或者
+
 ```
-
 bash utils/install-dependencies.sh
-
 ```
 
 2. 下载代码
@@ -92,8 +91,6 @@ plugin.init_worker()
 
 core.config_yaml.new(key) 从本地模块缓存配置中获取对应的key的配置；
 
-
-# mysql配置改造
 
 ## mysql 库表结构
 

@@ -18,12 +18,16 @@
 -->
 
 # apisix-mysql适配
-[官方apisix](https://apisix.apache.org/zh/docs/apisix/3.2/getting-started/)采用etcd存储配置，满足其高性能要求。但很多场景下比如中小型系统、B端私有化系统部署，很难有能力维护etcd存储，多引入一个中间件同时也提升了系统复杂度，更多的系统是React+Java+mysql+ng(apisix)即完成一套系统的开发部署。    
+
+[官方apisix](https://apisix.apache.org/zh/docs/apisix/3.2/getting-started/)采用etcd存储配置，满足其高性能要求。但很多场景下比如中小型系统、B端私有化系统部署，很难有能力维护etcd存储，多引入一个中间件同时也提升了系统复杂度，更多的系统是React+Java+mysql+ng(apisix)即完成一套系统的开发部署。  
 项目基于apisix-3.2版本，引入mysql作为配置存储源，满足轻量化部署。apisix仅读取mysql配置，而不写入；配置项可另外基于Java开发，引入一套管理机制实现（待实现）。apisix启动时其进程+工作进程主动拉取mysql全局配置缓存本地，在运行过程中增量获取变更配置同步。
 
 ## 部署
-源码部署，参考[官网说明](https://apisix.apache.org/zh/docs/apisix/3.2/building-apisix/)   
+
+源码部署，参考[官网说明](https://apisix.apache.org/zh/docs/apisix/3.2/building-apisix/)
+
 ### mysql脚本
+
 ```SQL
 create table routes
 (
@@ -57,7 +61,9 @@ create table upstream
 ```
 
 ### apisix配置
+
 config.yaml 配置
+
 ```yml
 deployment:
   role: data_plane
@@ -73,13 +79,14 @@ deployment:
 ```
 
 
-
 ### 启动
+
 参考apisix官网
 https://apisix.apache.org/zh/docs/apisix/3.2/building-apisix/
 
 
 ## 计划
+
 目前仅支持配置route路由，其它配置如Service、plugins等待启动
 - [ ] 配置管理系统
 - [ ] service、plugins配置项
