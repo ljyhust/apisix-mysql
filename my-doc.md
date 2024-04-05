@@ -1,16 +1,22 @@
 # 代码学习
+
 1. 安装依赖
+
 `curl https://raw.githubusercontent.com/apache/apisix/${分支}utils/install-dependencies.sh -sL | bash -`
 
 或者
 ```
+
 bash utils/install-dependencies.sh
+
 ```
 
 2. 下载代码
+
 `make deps`  安装依赖：luajit luarocks包管理  插件依赖 等等
 
 ## 启动详解
+
 apisix.lua::start启动 openresty
 
 > jeang       5747       1  0 20:03 ?        00:00:00 nginx: master process /usr/bin/openresty -p /home/jeang/open-codes/apisix -c /home/jeang/open-codes/apisix/conf/nginx.conf
@@ -19,6 +25,7 @@ apisix.lua::start启动 openresty
 -c 表示配置位置
 
 ## nginx说明
+
 ```
 lua_package_path  "$prefix/deps/share/lua/5.1/?.lua;$prefix/deps/share/lua/5.1/?/init.lua;/home/jeang/open-codes/apisix/?.lua;/home/jeang/open-codes/apisix/?/init.lua;;./?.lua;/usr/local/openresty/luajit/share/luajit-2.1.0-beta3/?.lua;/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua;/usr/local/openresty/luajit/share/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/?/init.lua;;";
     lua_package_cpath "$prefix/deps/lib64/lua/5.1/?.so;$prefix/deps/lib/lua/5.1/?.so;;./?.so;/usr/local/lib/lua/5.1/?.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so;/usr/local/lib/lua/5.1/loadall.so;";
@@ -27,15 +34,21 @@ lua_package_path  "$prefix/deps/share/lua/5.1/?.lua;$prefix/deps/share/lua/5.1/?
 `$prefix`表示openresty工作区或目录
 
 ## vscode快捷键
+
 `Ctrl + Alt + '-' 返回上一处 Go back`
 `Ctrl + Alt + '+' Go forward`
 `Ctrl + P  搜索文件`
 
 ## 源码说明
-- ops.lua脚本 start方法启动，调用init检查相关配置，生成nginx.conf配置&启动nginx进程；  
+
+- ops.lua脚本 start方法启动，调用init检查相关配置，生成nginx.conf配置&启动nginx进程；
+
 - apisix.init.lua启动
+
 - http_init()方法 初始化配置，调用config_etcd或config_yaml两种模块的init方法；其中 config_ymal:init是初始化第一波读取apisix.yaml配置，并放入模块缓存中；
+
 - nginx进程启动;
+
 ```
 init_by_lua_block {
         require "resty.core"
@@ -59,9 +72,11 @@ init_by_lua_block {
         apisix.http_init_worker()
     }
 ```
+
 > apisix.http_init_worker()，启动config_yaml或config_etcd的初始化方法`core.config.init_worker()`；(这是worker启动的模块缓存，与上一次master进程启动缓存不一样)
 
 - 其它模块配置初始化(搜索`config.new`看调用)，这些方法都会去调用core.config.new(key) 创建进程配置；
+
 ```
 plugin.init_worker()
     router.http_init_worker()
@@ -79,7 +94,9 @@ core.config_yaml.new(key) 从本地模块缓存配置中获取对应的key的配
 
 
 # mysql配置改造
+
 ## mysql 库表结构
+
 ```sql
 create schema apisix collate utf8mb4_0900_ai_ci;
 
