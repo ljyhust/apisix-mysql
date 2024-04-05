@@ -73,7 +73,7 @@ local mysql_cli
 local function merge_change_routes(start_ctime, end_ctime, old_routes)
     local u_routes, u_route_map = mysql_cli.query_routes_by_time(mysql_cli, start_ctime, end_ctime)
 
-    -- 无变更， 返回旧的
+    --无变更， 返回旧的
     if not u_routes or next(u_routes) == nil then
         log.info("routes配置无变更....")
         return old_routes
@@ -101,7 +101,7 @@ local function merge_change_routes(start_ctime, end_ctime, old_routes)
             insert_tab(new_routes, v)
         end
     end
-    -- 合并u_route_map新的内容
+    --合并u_route_map新的内容
     log.info("新增部分配置: ", json.delay_encode(u_route_map, true))
     for k, v in pairs(u_route_map) do
         if v and next(v) ~= nil then
@@ -119,7 +119,7 @@ end
 local function merge_change_upstreams(start_ctime, end_ctime, old_upstreams)
     local u_upstreams, u_upstream_map = mysql_cli.query_upstreams_by_time(mysql_cli, start_ctime, end_ctime)
 
-    -- 无变更，返回原数据
+    --无变更，返回原数据
     if not u_upstreams or next(u_upstreams) == nil then
         log.info("upstreams配置无变更....")
         return old_upstreams
@@ -131,8 +131,8 @@ local function merge_change_upstreams(start_ctime, end_ctime, old_upstreams)
     end
 
     log.info("增量合并: ", json.delay_encode(u_upstream_map, true))
-    -- @TODO增量合并，先复制后转引用，防止并发内存数据中断
-    -- clone
+    --@TODO增量合并，先复制后转引用，防止并发内存数据中断
+    --clone
     local new_upstreams = new_tab(1, 0)
 
     log.info("合并之前: ", json.delay_encode(old_upstreams, true))

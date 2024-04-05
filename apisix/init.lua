@@ -138,7 +138,7 @@ function _M.http_init_worker()
 
     require("apisix.debug").init_worker()
 
-    -- 启动配置如config_etcd或config_ymal配置启动  
+    -- 启动配置如config_etcd或config_ymal配置启动
     if core.config.init_worker then
         local ok, err = core.config.init_worker()
         if not ok then
@@ -538,23 +538,6 @@ function _M.http_access_phase()
 
     local uri = api_ctx.var.uri
 
-    if (uri == '/test') then
-        local yaml_local_config = core.config.apisix_config
-        for k, v in pairs(yaml_local_config) do
-            core.log.info("ymal key ", k, ", type_value ", type(v))
-            if type(v) ~= 'table' then
-                core.log.info("ymal key ", k, ", value ", v)
-            end
-
-            if type(v) == 'table' and v then
-                for k1, v2 in pairs(v) do
-                    core.log.info("subtree v type is ", type(v2))
-                end
-            end
-        end
-        core.log.info("res ", core.json.encode(yaml_local_config))
-        return core.response.exit(200, core.json.encode(yaml_local_config))
-    end
     if local_conf.apisix then
         if local_conf.apisix.delete_uri_tail_slash then
             if str_byte(uri, #uri) == str_byte("/") then

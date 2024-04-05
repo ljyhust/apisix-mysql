@@ -76,13 +76,11 @@ deployment:
     port: 3306
     database: apisix
     user: jeang
-    password: ljyhust
+    password: xxxx
     charset: utf8
     keepalive: 60000
     pool_size: 20
     backlog: 200
-
 nginx_config:
   worker_processes: 1
- 
 #END
