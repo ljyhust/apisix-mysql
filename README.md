@@ -31,38 +31,51 @@
 ```SQL
 create table routes
 (
-	id int auto_increment comment '主'
+	id int auto_increment
 		primary key,
-	uri varchar(255) null,
-	method_list varchar(255) default '' not null,
-	route_name varchar(64) default '' not null,
-	vars varchar(255) default '' null,
-	upstream_code varchar(32) default '' null,
-	enable_websocket tinyint default 0 not null,
-	delete_flag tinyint(1) default 0 not null,
-	create_time datetime default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP not null,
-	update_time datetime default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP not null
-);
+	name varchar(100) default '' null,
+	uris varchar(4096) default '' null comment '服务地址',
+	priority int default 0 null comment '优先级',
+	methods varchar(1024) default '' null comment '方法集合，json_array',
+	hosts varchar(2048) default '' null comment '来源hosts，json_array',
+	remote_addrs varchar(2048) default '' null comment '客户来源IP集合，json_array',
+	vars varchar(1024) default '' null,
+	enable_websocket tinyint(1) default 0 null,
+	upstream_id varchar(64) default '' null comment '上游id，关联键',
+	service_id varchar(64) default '' null,
+	plugin_config_id varchar(64) default '' null,
+	mark_desc varchar(256) default '' null,
+	delete_flag tinyint(1) default 0 null,
+	create_time datetime default CURRENT_TIMESTAMP not null,
+	update_time datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP
+)
+comment '服务路由';
 
-create table upstream
+create table upstreams
 (
 	id int auto_increment
 		primary key,
-	upstream_code varchar(32) default '' not null,
-	upstream_name varchar(32) default '' null,
-	upstream_type varchar(10) default '' null,
-	node_address varchar(255) default '' not null,
-	weight int default 1 not null,
-	type varchar(32) default '' not null,
-	delete_flag tinyint(1) default 0 not null,
-	create_time datetime default CURRENT_TIMESTAMP  ON UPDATE CURRENT_TIMESTAMP not null,
-	update_time datetime default CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP not null
-);
+	name varchar(64) default '' null,
+	upstream_code varchar(64) default '' null comment '唯一标识',
+	type varchar(10) default '' not null,
+	nodes text not null comment '服务地址，json串',
+	retries int default 0 null comment '重试次数',
+	timeout varchar(1024) default '' not null comment '超时时间',
+	retry_timeout int default 0 null comment '重试时间',
+	scheme varchar(32) default '' null,
+	hash_on varchar(20) default '' null,
+	`key` varchar(256) default '' null,
+	mark_desc varchar(256) default '' null,
+	delete_flag tinyint(1) default 0 null,
+	create_time datetime default CURRENT_TIMESTAMP not null,
+	update_time datetime default CURRENT_TIMESTAMP null on update CURRENT_TIMESTAMP
+)
+comment '上游服务';
 ```
 
 ### apisix配置
 
-config.yaml 配置
+config.yaml 配置数据库
 
 ```yml
 deployment:

@@ -70,6 +70,7 @@ t/lib/dubbo-backend/dubbo-backend-provider/target/
 !.licenserc.yaml
 !.ignore_words
 conf/apisix.yaml
+conf/config.yaml
 conf/apisix-*.yaml
 conf/config-*.yaml
 !conf/config-default.yaml

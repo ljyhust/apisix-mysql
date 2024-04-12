@@ -40,6 +40,35 @@ _M.query_upstreams_sql_template = [[
     from upstreams where delete_flag = 0 and update_time between '%s' and '%s'
 ]]
 
+-- 获取数据库连接
+local function get_conn(db_config)
+    -- 创建连接
+    local db_cli, err = mysql:new()
+    if not db_cli then
+        log.error("failed to instantiate mysql: ", err)
+        return
+    end
+    db_cli:set_timeout((db_config.timeout or 3000))
+
+    local ok, err, errcode, sqlstate = db_cli:connect(db_config)
+    if not ok then
+        log.error("failed to connect mysql: ", err, ", ", errcode, ", ", sqlstate)
+        return
+    end
+
+    return db_cli
+end
+
+-- 关闭链接
+local function close_conn(db_cli, db_config)
+    -- body
+    local keepalive_time = db_config.keepalive or 30000
+    local ok, err = db_cli:set_keepalive(keepalive_time, 10)
+    if not ok then
+        log.warn("mysql keepalive err: ", err)
+    end
+end
+
 -- 按时间查询路由
 function _M.query_routes_by_time(self, fetch_start_time, fetch_end_time)
     local nowStr = os.date("%Y-%m-%d %H:%M:%S", fetch_end_time)
@@ -51,12 +80,15 @@ function _M.query_routes_by_time(self, fetch_start_time, fetch_end_time)
     local query_routes_sql = format(self.query_routes_sql_template, route_last_ctime, nowStr)
     log.info("query routes ", query_routes_sql)
     
-    local res, err, errcode, sqlstate = self.db_cli:query(query_routes_sql)
+    local db_cli = get_conn(self.db_config)
+    local res, err, errcode, sqlstate = db_cli:query(query_routes_sql)
     if not res then
         log.error("query routes error: ", err, ", ", errcode, ", ", sqlstate)
         return    
     end
-    -- res, err, errcode, sqlstate = self.db_cli:read_result()
+
+    close_conn(db_cli, self.db_config)
+
     if nil == next(res) then
         log.info("no new routes info")
         return
@@ -82,13 +114,7 @@ function _M.query_routes_by_time(self, fetch_start_time, fetch_end_time)
         route_map["r" .. route.id] = route
     end
     
-    -- res, err, errcode, sqlstate = self.db_cli:read_result()
-    log.info("query route: ", err)
     log.info("query routes list ", json.delay_encode(route_list), ", ", json.delay_encode(route_map))
-    -- local ok, err = self.db_cli:set_keepalive(self.db_config, 5)
-    -- if not ok then
-    --     log.info("mysql keepalive err: ", err)
-    -- end
 
     return route_list, route_map
 end
@@ -106,12 +132,16 @@ function _M.query_upstreams_by_time(self, fetch_start_time, fetch_end_time)
     local query_upstreams_sql = format(self.query_upstreams_sql_template, last_ctime, nowStr)
     log.info("query upstreams ", query_upstreams_sql)
 
-    local res, err, errcode, sqlstate = self.db_cli:query(query_upstreams_sql)
+    local db_cli = get_conn(self.db_config)
+
+    local res, err, errcode, sqlstate = db_cli:query(query_upstreams_sql)
     if not res then
         log.error("query upstreams error: ", err, ", ", errcode, ", ", sqlstate)
         return    
     end
     
+    close_conn(db_cli, self.db_config)
+
     if nil == next(res) then
         log.info("no new upstreams info")
         return
@@ -130,34 +160,15 @@ function _M.query_upstreams_by_time(self, fetch_start_time, fetch_end_time)
         upstream_map["u" .. upstream.id] = upstream
     end
     
-    -- res, err, errcode, sqlstate = self.db_cli:read_result()
     log.info("query routes list ", json.delay_encode(upstream_list), ", ", json.delay_encode(upstream_map))
-    -- local ok, err = self.db_cli:set_keepalive(self.db_config, 5)
-    -- if not ok then
-    --     log.info("mysql keepalive err: ", err)
-    -- end
 
     return upstream_list, upstream_map
 end
 
 -- 创建实例
 function _M.new(self, db_config)
-    -- 创建连接
-    local db_cli, err = mysql:new()
-    if not db_cli then
-        log.error("failed to instantiate mysql: ", err)
-        return
-    end
-    db_cli:set_timeout((db_config.timeout or 3000))
-
-    local ok, err, errcode, sqlstate = db_cli:connect(db_config)
-    if not ok then
-        log.error("failed to connect mysql: ", err, ", ", errcode, ", ", sqlstate)
-        return
-    end
 
     return setmetatable({
-        db_cli = db_cli,
         db_config = db_config
     }, {
         __index = _M
