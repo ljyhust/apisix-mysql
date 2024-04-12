@@ -75,7 +75,7 @@ deployment:
     host: 127.0.0.1
     port: 3306
     database: apisix
-    user: jeang
+    user: xxxx
     password: xxxx
     charset: utf8
     keepalive: 60000
