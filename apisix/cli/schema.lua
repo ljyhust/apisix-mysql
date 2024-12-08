@@ -321,6 +321,14 @@ local config_schema = {
                 }
             },
         },
+        file_server = {
+            type = "object",
+            properties = {
+                path = {
+                    type = "string"
+                }
+            }
+        }
     },
     required = {"apisix", "deployment"},
 }

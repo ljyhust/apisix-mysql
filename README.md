@@ -105,3 +105,6 @@ https://apisix.apache.org/zh/docs/apisix/3.2/building-apisix/
 - [ ] service、plugins配置项
 - [ ] rewrite映射
 - [ ] 静态资源代理
+- [ ] 日志规范化插件
+- [ ] 文件上传及预览
+- [x] 代理apisix-config配置服务

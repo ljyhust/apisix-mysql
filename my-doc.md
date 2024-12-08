@@ -91,6 +91,23 @@ plugin.init_worker()
 
 core.config_yaml.new(key) 从本地模块缓存配置中获取对应的key的配置；
 
+## 配置
+local_config读取本地配置，如config_default.yaml + config.yaml文件的综合体
+
+配置文件范式定义在`schema.lua`文件
+
+### 生成nginx配置
+apisix.init用ngx_tpl模板文件写入配置
+
+## 请求链路
+9080 端口是数据面
+
+9180 是admin控制面
+
+1. apisix/init.lua   http_access_phase()方法接收请求，解析uri及route；
+2. apisix/init.lua  handle_upstream() 方法获取上游upstream配置；
+3. apisix/init.lua  http_balancer_phase()
+
 
 ## mysql 库表结构
 
@@ -99,7 +116,7 @@ create schema apisix collate utf8mb4_0900_ai_ci;
 
 create table routes
 (
-	id int auto_increment comment '主'
+	id int auto_increment comment 'primary key'
 		primary key,
 	uri varchar(255) null,
 	method_list varchar(255) default '' not null,
@@ -128,3 +145,7 @@ create table upstream
 );
 
 ```
+## rewrite实现  
+config-default默认加上rewrite插件，每个route配置中都可打开这个插件并配置对应规则
+
+## 文件上传及预览

@@ -430,6 +430,17 @@ http {
         keepalive_timeout {* http.upstream.keepalive_timeout *};
         {% end %}
     }
+    
+
+    {% if admin_config_server_address then %}
+    upstream admin_config_backend {
+        {* admin_config_server_address *}
+
+        keepalive 320;
+        keepalive_requests 1000;
+        keepalive_timeout 60s;
+    }
+    {% end %}
 
     {% if enabled_plugins["dubbo-proxy"] then %}
     upstream apisix_dubbo_backend {
@@ -578,6 +589,23 @@ http {
 
     {% if conf_server then %}
     {* conf_server *}
+    {% end %}
+
+    {% if admin_config_server_uri then %}
+    server {
+        listen 127.0.0.1:9082;
+
+        location {* admin_config_server_uri *} {
+
+            proxy_pass     http://admin_config_backend;
+            proxy_set_header  HOST  $host;
+
+            body_filter_by_lua_block {
+                apisix.admin_config_callback()
+            }
+
+        }
+    }
     {% end %}
 
     {% if deployment_role ~= "control_plane" then %}

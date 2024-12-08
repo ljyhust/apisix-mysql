@@ -354,6 +354,25 @@ Please modify "admin_key" in conf/config.yaml .
         end
     end
 
+    -- 获取多个配置服务upstream
+    local function admin_config_upstream(server_nodes_list)
+        local upstrem_config = ""
+        for ip, port in pairs(server_nodes_list) do
+            upstrem_config = upstrem_config .. "server " .. ip ..":" .. port .. ";\n"
+        end
+        return upstrem_config
+    end
+
+    local admin_config_server = yaml_conf.deployment.config_server_route
+    local admin_config_server_address
+    local admin_config_server_uri
+    if admin_config_server then
+        if admin_config_server.address_list then
+            admin_config_server_address = admin_config_upstream(admin_config_server.address_list)
+        end
+        admin_config_server_uri = admin_config_server.uri
+    end
+
     if enabled_stream_plugins["prometheus"] and not prometheus_server_addr then
         util.die("L4 prometheus metric should be exposed via export server\n")
     end
@@ -548,6 +567,8 @@ Please modify "admin_key" in conf/config.yaml .
         prometheus_server_addr = prometheus_server_addr,
         proxy_mirror_timeouts = proxy_mirror_timeouts,
         conf_server = conf_server,
+        admin_config_server_address = admin_config_server_address,
+        admin_config_server_uri = admin_config_server_uri
     }
 
     if not yaml_conf.apisix then
@@ -923,7 +944,6 @@ local function reload(env)
 
     print("test openresty failed")
 end
-
 
 
 local action = {

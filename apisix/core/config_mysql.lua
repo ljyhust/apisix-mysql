@@ -41,7 +41,7 @@ local pcall        = pcall
 local ngx          = ngx
 local apisix_yaml_path = profile:yaml_path("apisix")
 local created_obj  = {}
-local mysql_def    = require("apisix.core.mysql_def")
+local mysql_ds    = require("apisix.core.mysql_ds")
 
 
 local _M = {
@@ -69,6 +69,11 @@ local mysql_cli
 --[[
     获取最新更新的routes
     2024-04-03
+    1. 存量route && sql_route == null，不变更  new_route.add(存量route)；
+    2. 存量route && sql_route.delete_flag == 0，变更用sql_route  new_route.add(sql_route);
+    3. 存量route && sql_route.delete_flag == 1，删除存量route  new_route nothing
+
+    4. 存在route不存在，sql_route.delete_flag == 0，new_route.add(sql_route)
 --]]
 local function merge_change_routes(start_ctime, end_ctime, old_routes)
     local u_routes, u_route_map = mysql_cli.query_routes_by_time(mysql_cli, start_ctime, end_ctime)
@@ -92,19 +97,21 @@ local function merge_change_routes(start_ctime, end_ctime, old_routes)
     log.info("合并之前: ", json.delay_encode(old_routes, true))
     for i, v in ipairs(old_routes) do
         local key = "r" .. v.id
-        if u_route_map[key] then
-            -- 如果存在，放入new_routes中，并删除u_route_map中的数据
+        if u_route_map[key] and u_route_map[key].delete_flag == 0 then
+            -- 如果存在，放入new_routes中，并清除u_route_map中的数据
             insert_tab(new_routes, u_route_map[key])
             u_route_map[key] = {}
-        else
+        elseif u_route_map[key] and u_route_map[key].delete_flag == 1 then
+            -- nothing
+        else 
             -- 如果原来已存在，本次无更新，继承存入
             insert_tab(new_routes, v)
         end
     end
-    --合并u_route_map新的内容
+    --合并u_route_map新 && old_route不存在 的内容
     log.info("新增部分配置: ", json.delay_encode(u_route_map, true))
     for k, v in pairs(u_route_map) do
-        if v and next(v) ~= nil then
+        if v and next(v) ~= nil and v.delete_flag == 0 then
             insert_tab(new_routes, v)
         end
     end
@@ -138,10 +145,12 @@ local function merge_change_upstreams(start_ctime, end_ctime, old_upstreams)
     log.info("合并之前: ", json.delay_encode(old_upstreams, true))
     for i, v in ipairs(old_upstreams) do
         local key = "u" .. v.id
-        if u_upstream_map[key] then
+        if u_upstream_map[key] and u_upstream_map[key].delete_flag == 0 then
             -- 如果存在，放入new_upstreams中，并删除u_route_map中的数据
             insert_tab(new_upstreams, u_upstream_map[key])
             u_upstream_map[key] = {}
+        elseif u_upstream_map[key] and u_upstream_map[key].delete_flag == 1 then
+            -- nothing
         else
             -- 如果原来已存在，本次无更新，继承存入
             insert_tab(new_upstreams, v)
@@ -150,7 +159,7 @@ local function merge_change_upstreams(start_ctime, end_ctime, old_upstreams)
     -- 合并u_route_map新的内容
     log.info("新增部分配置: ", json.delay_encode(u_upstream_map, true))
     for k, v in pairs(u_upstream_map) do
-        if v and next(v) ~= nil then
+        if v and next(v) ~= nil and v.delete_flag == 0 then
             insert_tab(new_upstreams, v)
         end
     end
@@ -183,10 +192,12 @@ local function merge_change_plugin_confs(start_ctime, end_ctime, old_plugin_conf
     log.info("合并之前: ", json.delay_encode(old_plugin_confs, true))
     for i, v in ipairs(old_plugin_confs) do
         local key = "p" .. v.id
-        if u_plugin_conf_map[key] then
+        if u_plugin_conf_map[key] and u_plugin_conf_map[key].delete_flag == 0 then
             -- 如果存在，放入new中，并删除map中的数据
             insert_tab(new_plugin_confs, u_plugin_conf_map[key])
             u_plugin_conf_map[key] = {}
+        elseif u_plugin_conf_map[key] and u_plugin_conf_map[key].delete_flag == 1 then
+            -- nothing
         else
             -- 如果原来已存在，本次无更新，继承存入
             insert_tab(new_plugin_confs, v)
@@ -195,7 +206,7 @@ local function merge_change_plugin_confs(start_ctime, end_ctime, old_plugin_conf
     -- 合并_map新的内容
     log.info("新增部分配置: ", json.delay_encode(u_plugin_conf_map, true))
     for k, v in pairs(u_plugin_conf_map) do
-        if v and next(v) ~= nil then
+        if v and next(v) ~= nil and v.delete_flag == 0 then
             insert_tab(new_plugin_confs, v)
         end
     end
@@ -517,7 +528,7 @@ function _M.init()
     end
     mysql_config = local_conf.deployment.mysql
     log.info("mysql config ", json.delay_encode(mysql_config))
-    mysql_cli = mysql_def:new(mysql_config)
+    mysql_cli = mysql_ds:new(mysql_config)
 
     if not apisix_mysql then
         apisix_mysql = {}
@@ -534,7 +545,7 @@ function _M.init_worker()
     end
     mysql_config = local_conf.deployment.mysql
     log.info("mysql config ", json.delay_encode(mysql_config))
-    mysql_cli = mysql_def:new(mysql_config)
+    mysql_cli = mysql_ds:new(mysql_config)
     -- sync data in each non-master process
     ngx.timer.every(30, read_apisix_mysql)
 

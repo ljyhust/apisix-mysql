@@ -45,6 +45,7 @@ local xrpc            = require("apisix.stream.xrpc")
 local ctxdump         = require("resty.ctxdump")
 local debug           = require("apisix.debug")
 local pubsub_kafka    = require("apisix.pubsub.kafka")
+local config_callback = require("apisix.admin.config_callback")
 local ngx             = ngx
 local get_method      = ngx.req.get_method
 local ngx_exit        = ngx.exit
@@ -1094,6 +1095,21 @@ function _M.stream_log_phase()
     end
 
     core.tablepool.release("api_ctx", api_ctx)
+end
+
+-- admin配置后的回调处理：如果增删改后刷新缓存
+function _M.admin_config_callback()
+    core.log.info("admin_config_callback")
+    local api_ctx = ngx.ctx.api_ctx
+    if not api_ctx then
+        api_ctx = core.tablepool.fetch("api_ctx", 0, 32)
+        ngx.ctx.api_ctx = api_ctx
+    end
+    
+    if not api_ctx._plugin_name then
+        api_ctx._plugin_name = "_admin#config#server_"
+    end
+    config_callback.handler(api_ctx)
 end
 
 

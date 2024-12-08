@@ -31,17 +31,17 @@ local _M = {version = 0.1}
 -- 按时间查询路由配置sql样本
 _M.query_routes_sql_template = [[
     select id, uris, name, mark_desc, methods, enable_websocket, vars, upstream_id
-    from routes where delete_flag = 0 and update_time between '%s' and '%s'
+    from routes where 1=1 and update_time between '%s' and '%s'
 ]]
 
 -- 按时间查询上游配置sql样本
 _M.query_upstreams_sql_template = [[
     select id, name, mark_desc, retries, timeout, nodes, type, scheme 
-    from upstreams where delete_flag = 0 and update_time between '%s' and '%s'
+    from upstreams where 1=1 and update_time between '%s' and '%s'
 ]]
 
 _M.query_plugin_config_sql_tpl = [[
-    select id, plugins from plugin_configs where delete_flag = 0
+    select id, plugins from plugin_configs where 1=1
     and update_time between '%s' and '%s'
 ]]
 
