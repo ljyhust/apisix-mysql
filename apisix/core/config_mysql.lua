@@ -168,51 +168,52 @@ local function merge_change_upstreams(start_ctime, end_ctime, old_upstreams)
 end
 
 --[[
-    获取最新更新的插件配置
+    通用处理配置合并
 --]]
-local function merge_change_plugin_confs(start_ctime, end_ctime, old_plugin_confs)
-    local u_plugin_confs, u_plugin_conf_map = mysql_cli.query_plugin_configs_by_time(mysql_cli, start_ctime, end_ctime)
+local function merge_change_config(start_ctime, end_ctime, old_confs, query_handler)
+    local u_change_confs, u_change_conf_map = query_handler(mysql_cli, start_ctime, end_ctime)
 
     --无变更，返回原数据
-    if not u_plugin_confs or next(u_plugin_confs) == nil then
-        log.info("plugin_confs配置无变更....")
-        return old_plugin_confs
+    if not u_change_confs or next(u_change_confs) == nil then
+        log.info("change_confs配置无变更....")
+        return old_confs
     end
-    log.info("plugin_confs 配置变更  ", json.delay_encode(u_plugin_confs))
+    log.info("confs 配置变更  ", json.delay_encode(u_change_confs))
 
-    if nil == old_plugin_confs or next(old_plugin_confs) == nil then
-        return u_plugin_confs
+    if nil == old_confs or next(old_confs) == nil then
+        return u_change_confs
     end
 
-    log.info("增量合并: ", json.delay_encode(u_plugin_conf_map, true))
+    log.info("增量合并: ", json.delay_encode(u_change_conf_map, true))
     --@TODO增量合并，先复制后转引用，防止并发内存数据中断
     --clone
-    local new_plugin_confs = new_tab(1, 0)
+    local new_change_confs = new_tab(1, 0)
 
-    log.info("合并之前: ", json.delay_encode(old_plugin_confs, true))
-    for i, v in ipairs(old_plugin_confs) do
+    log.info("合并之前: ", json.delay_encode(old_confs, true))
+    for i, v in ipairs(old_confs) do
         local key = "p" .. v.id
-        if u_plugin_conf_map[key] and u_plugin_conf_map[key].delete_flag == 0 then
+        if u_change_conf_map[key] and u_change_conf_map[key].delete_flag == 0 then
             -- 如果存在，放入new中，并删除map中的数据
-            insert_tab(new_plugin_confs, u_plugin_conf_map[key])
-            u_plugin_conf_map[key] = {}
-        elseif u_plugin_conf_map[key] and u_plugin_conf_map[key].delete_flag == 1 then
+            insert_tab(new_change_confs, u_change_conf_map[key])
+            u_change_conf_map[key] = {}
+        elseif u_change_conf_map[key] and u_change_conf_map[key].delete_flag == 1 then
             -- nothing
         else
             -- 如果原来已存在，本次无更新，继承存入
-            insert_tab(new_plugin_confs, v)
+            insert_tab(new_change_confs, v)
         end
     end
     -- 合并_map新的内容
-    log.info("新增部分配置: ", json.delay_encode(u_plugin_conf_map, true))
-    for k, v in pairs(u_plugin_conf_map) do
+    log.info("新增部分配置: ", json.delay_encode(u_change_conf_map, true))
+    for k, v in pairs(u_change_conf_map) do
         if v and next(v) ~= nil and v.delete_flag == 0 then
-            insert_tab(new_plugin_confs, v)
+            insert_tab(new_change_confs, v)
         end
     end
-    log.info("合并之后: ", json.delay_encode(new_plugin_confs, true))
-    return new_plugin_confs
+    log.info("合并之后: ", json.delay_encode(new_change_confs, true))
+    return new_change_confs
 end
+
 
 -- @TODO 第一次获取全部数据；后几次根据时间增量刷新
 local function read_apisix_mysql(premature, pre_mtime)
@@ -229,6 +230,7 @@ local function read_apisix_mysql(premature, pre_mtime)
     local old_routes = nil
     local old_upstreams = nil
     local old_plugin_confs = nil
+    local old_global_rules = nil
     if nil ~= apisix_mysql and next(apisix_mysql) ~= nil then
         old_routes = apisix_mysql["routes"]
     end
@@ -239,12 +241,13 @@ local function read_apisix_mysql(premature, pre_mtime)
 
     if nil ~= apisix_mysql and next(apisix_mysql) ~= nil then
         old_plugin_confs = apisix_mysql["plugin_configs"]
+        old_global_rules = apisix_mysql["global_rules"]
     end
 
     local new_routes = merge_change_routes(apisix_mysql_ctime, current_time, old_routes)
     local new_upstreams = merge_change_upstreams(apisix_mysql_ctime, current_time, old_upstreams)
-    local new_plugin_cons = merge_change_plugin_confs(apisix_mysql_ctime, current_time, old_plugin_confs)
-    local new_global_rules = {}
+    local new_plugin_cons = merge_change_config(apisix_mysql_ctime, current_time, old_plugin_confs, mysql_cli.query_plugin_configs_by_time)
+    local new_global_rules = merge_change_config(apisix_mysql_ctime, current_time, old_global_rules, mysql_cli.query_global_rules_by_time)
 
     apisix_mysql.routes = new_routes
     apisix_mysql.upstreams = new_upstreams

@@ -217,7 +217,7 @@ function _M.query_plugin_configs_by_time(self, fetch_start_time, fetch_end_time)
 end
 
 -- 查询字典项
-local function query_dict_item_by_time(dict_key, fetch_start_time, fetch_end_time)
+local function query_dict_item_by_time(self, dict_key, fetch_start_time, fetch_end_time)
     local query_dict_sql = format(query_common_dict_sql_tpl, dict_key, fetch_start_time, fetch_end_time)
     local db_cli = get_conn(self.db_config)
 
@@ -245,7 +245,10 @@ function _M.query_global_rules_by_time(self, fetch_start_time, fetch_end_time)
     if nil ~= fetch_start_time then
         last_ctime = os.date("%Y-%m-%d %H:%M:%S", fetch_start_time)
     end
-    local dict_item_list = query_dict_item_by_time("global_rules", last_ctime, nowStr)
+    local dict_item_list = query_dict_item_by_time(self, "global_rules", last_ctime, nowStr)
+    if not dict_item_list then
+        return    
+    end
 
     local global_rule_list = {}
     local global_rule_map = new_tab(0, #dict_item_list)
