@@ -30,18 +30,24 @@ local _M = {version = 0.1}
 
 -- 按时间查询路由配置sql样本
 _M.query_routes_sql_template = [[
-    select id, uris, name, mark_desc, methods, enable_websocket, vars, upstream_id
+    select id, uris, name, mark_desc, methods, enable_websocket, vars, upstream_id, delete_flag
     from routes where 1=1 and update_time between '%s' and '%s'
 ]]
 
 -- 按时间查询上游配置sql样本
 _M.query_upstreams_sql_template = [[
-    select id, name, mark_desc, retries, timeout, nodes, type, scheme 
+    select id, name, mark_desc, retries, timeout, nodes, type, scheme, delete_flag
     from upstreams where 1=1 and update_time between '%s' and '%s'
 ]]
 
 _M.query_plugin_config_sql_tpl = [[
-    select id, plugins from plugin_configs where 1=1
+    select id, plugins, delete_flag from plugin_configs where 1=1
+    and update_time between '%s' and '%s'
+]]
+
+local query_common_dict_sql_tpl = [[
+    select id, dict_item_key, dict_item_value, delete_flag where 1 =1 
+    and dict_key = '%s'
     and update_time between '%s' and '%s'
 ]]
 
@@ -208,6 +214,51 @@ function _M.query_plugin_configs_by_time(self, fetch_start_time, fetch_end_time)
     log.info("query routes list ", json.delay_encode(plugin_configs_list), ", ", json.delay_encode(plugin_config_map))
 
     return plugin_configs_list, plugin_config_map
+end
+
+-- 查询字典项
+local function query_dict_item_by_time(dict_key, fetch_start_time, fetch_end_time)
+    local query_dict_sql = format(query_common_dict_sql_tpl, dict_key, fetch_start_time, fetch_end_time)
+    local db_cli = get_conn(self.db_config)
+
+    local res, err, errcode, sqlstate = db_cli:query(query_dict_sql)
+    if not res then
+        log.error("query plugin configs error: ", err, ", ", errcode, ", ", sqlstate)
+        return    
+    end
+    
+    close_conn(db_cli, self.db_config)
+
+    if nil == next(res) then
+        log.info("no dict item config")
+        return
+    end
+
+    return res
+    
+end
+
+-- 按时间段查询全局路由插件配置
+function _M.query_global_rules_by_time(self, fetch_start_time, fetch_end_time) 
+    local nowStr = os.date("%Y-%m-%d %H:%M:%S", fetch_end_time)
+    local last_ctime = "0000-00-00 00:00:00"
+    if nil ~= fetch_start_time then
+        last_ctime = os.date("%Y-%m-%d %H:%M:%S", fetch_start_time)
+    end
+    local dict_item_list = query_dict_item_by_time("global_rules", last_ctime, nowStr)
+
+    local global_rule_list = {}
+    local global_rule_map = new_tab(0, #dict_item_list)
+    for i, dict_item in ipairs(dict_item_list) do
+        local plugin_config = json.decode(dict_item.dict_item_value)
+        global_rule_list[i] = {id=dict_item.id, plugins=plugin_config}
+        global_rule_map["p" .. dict_item.id] = global_rule_list[i]
+    end
+    
+    log.info("query routes list ", json.delay_encode(global_rule_list), ", ", json.delay_encode(global_rule_map))
+
+    return global_rule_list, global_rule_map
+
 end
 
 -- 创建实例

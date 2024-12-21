@@ -244,10 +244,12 @@ local function read_apisix_mysql(premature, pre_mtime)
     local new_routes = merge_change_routes(apisix_mysql_ctime, current_time, old_routes)
     local new_upstreams = merge_change_upstreams(apisix_mysql_ctime, current_time, old_upstreams)
     local new_plugin_cons = merge_change_plugin_confs(apisix_mysql_ctime, current_time, old_plugin_confs)
-    
+    local new_global_rules = {}
+
     apisix_mysql.routes = new_routes
     apisix_mysql.upstreams = new_upstreams
     apisix_mysql.plugin_configs = new_plugin_cons
+    apisix_mysql.global_rules = new_global_rules
 
     apisix_mysql_ctime = current_time
     log.info("当前配置为 ", json.delay_encode(apisix_mysql, true))

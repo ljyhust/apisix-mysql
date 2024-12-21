@@ -148,4 +148,18 @@ create table upstream
 ## rewrite实现  
 config-default默认加上rewrite插件，每个route配置中都可打开这个插件并配置对应规则
 
-## 文件上传及预览
+## 文件上传及预览插件
+1. 插件实现，配置拦截接口：上传接口、下载或预览文件接口
+2. 这些接口需要在routes中配置，header或form-data中增加特殊标志表示此上传接口被apisix拦截并处理
+3. 插件配置结构
+```javascript
+{
+    #uploadConf: type=local&path=test
+    #downloadConf: type=local&path=test
+}
+```
+
+4. 测试  
+```sh
+curl -i -F "file=@/home/jeang/logs/nacos/config.log" -H "storageConf:type=local" http://localhost:9080/apisix-config/manage/upstream/listAll
+```

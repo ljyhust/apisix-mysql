@@ -63,7 +63,7 @@ function _M.local_conf(force)
     end
 
     local default_conf, err = file.read_yaml_conf()
-    log.info("读取yaml配置...", json.delay_encode(default_conf.deployment.config_server_route))
+    log.info("读取yaml配置,plugins...", json.delay_encode(default_conf.plguins))
     if not default_conf then
         return nil, err
     end
