@@ -129,20 +129,48 @@ create table routes
 );
 
 
-create table upstream
+create table upstreams
 (
-	id int auto_increment
-		primary key,
-	upstream_code varchar(32) default '' not null,
-	upstream_name varchar(32) default '' null,
-	upstream_type varchar(10) default '' null,
-	node_address varchar(255) default '' not null,
-	weight int default 1 not null,
-	type varchar(32) default '' not null,
-	delete_flag tinyint(1) default 0 not null,
-	create_time datetime default CURRENT_TIMESTAMP not null,
-	update_time datetime default CURRENT_TIMESTAMP not null
-);
+    id            int auto_increment primary key,
+    name          varchar(64)   default ''                null,
+    upstream_code varchar(64)   default ''                null comment '唯一标识',
+    type          varchar(10)   default ''                not null,
+    nodes         text                                    not null comment '服务地址，json串',
+    retries       int           default 0                 null comment '重试次数',
+    timeout       varchar(1024) default ''                not null comment '超时时间',
+    retry_timeout int           default 0                 null comment '重试时间',
+    scheme        varchar(32)   default ''                null,
+    hash_on       varchar(20)   default ''                null,
+    upstream_key  varchar(256)  default ''                null,
+    mark_desc     varchar(256)  default ''                null,
+    delete_flag   tinyint(1)    default 0                 null,
+    create_time   datetime      default CURRENT_TIMESTAMP not null,
+    update_time   datetime      default CURRENT_TIMESTAMP null on update CURRENT_TIMESTAMP
+)
+    comment '上游服务';
+
+create table plugin_configs
+(
+    id                 int auto_increment primary key,
+    plugin_config_code varchar(64)  default ''                not null,
+    plugins            text                                   null comment '插件参数配置',
+    mark_desc          varchar(256) default ''                null,
+    delete_flag        tinyint      default 0                 not null,
+    create_time        datetime     default CURRENT_TIMESTAMP not null,
+    update_time        datetime     default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP
+)
+    comment '插件配置';
+
+create table sys_dict
+(
+    id              int auto_increment  primary key,
+    dict_key        varchar(32) default ''                null comment '字典项',
+    dict_item_key   varchar(32)                           null comment '配置项key',
+    dict_item_value text                                  null comment '配置项值',
+    delete_flag     tinyint     default 0                 not null comment '删除标识',
+    update_time     datetime    default CURRENT_TIMESTAMP null on update CURRENT_TIMESTAMP
+)
+    comment 'dict';
 
 ```
 ## rewrite实现  
@@ -157,9 +185,15 @@ config-default默认加上rewrite插件，每个route配置中都可打开这个
     #uploadConf: type=local&path=test
     #downloadConf: type=local&path=test
 }
+
+{
+    "file-store": {
+        "storageConf": storageConf
+    }
+}
 ```
 
 4. 测试  
 ```sh
-curl -i -F "file=@/home/jeang/logs/nacos/config.log" -H "storageConf:type=local" http://localhost:9080/apisix-config/manage/upstream/listAll
+curl -i -F "file=@/home/jeang/logs/nacos/config.log" -H "storageConf:type=local" -H "Content-Type: multipart/form-data" http://localhost:9080/apisix-config/manage/upstream/listAll
 ```

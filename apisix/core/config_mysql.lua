@@ -67,6 +67,23 @@ local mysql_cli
 -- local route_last_ctime = "0000-00-00 00:00:00"
 
 --[[
+    过滤已删除的数据，如Delete_flag=0
+--]]
+local function filter_has_delete(conf_list)
+    if not conf_list then
+        return
+    end
+
+    local new_list = {}
+    for _, conf in ipairs(conf_list) do
+        if conf.delete_flag == 0 then
+            insert_tab(new_list, conf)
+        end
+    end
+    return new_list
+end
+
+--[[
     获取最新更新的routes
     2024-04-03
     1. 存量route && sql_route == null，不变更  new_route.add(存量route)；
@@ -86,7 +103,7 @@ local function merge_change_routes(start_ctime, end_ctime, old_routes)
     log.info("routes 配置变更  ", json.delay_encode(u_routes))
 
     if nil == old_routes or next(old_routes) == nil then
-        return u_routes
+        return filter_has_delete(u_routes)
     end
 
     log.info("增量合并: ", json.delay_encode(u_route_map, true))
@@ -134,7 +151,8 @@ local function merge_change_upstreams(start_ctime, end_ctime, old_upstreams)
     log.info("upstreams 配置变更  ", json.delay_encode(u_upstreams))
 
     if nil == old_upstreams or next(old_upstreams) == nil then
-        return u_upstreams
+        -- 过滤已删除的数据
+        return filter_has_delete(u_upstreams)
     end
 
     log.info("增量合并: ", json.delay_encode(u_upstream_map, true))
@@ -233,13 +251,7 @@ local function read_apisix_mysql(premature, pre_mtime)
     local old_global_rules = nil
     if nil ~= apisix_mysql and next(apisix_mysql) ~= nil then
         old_routes = apisix_mysql["routes"]
-    end
-
-    if nil ~= apisix_mysql and next(apisix_mysql) ~= nil then
         old_upstreams = apisix_mysql["upstreams"]
-    end
-
-    if nil ~= apisix_mysql and next(apisix_mysql) ~= nil then
         old_plugin_confs = apisix_mysql["plugin_configs"]
         old_global_rules = apisix_mysql["global_rules"]
     end

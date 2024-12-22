@@ -46,7 +46,8 @@ _M.query_plugin_config_sql_tpl = [[
 ]]
 
 local query_common_dict_sql_tpl = [[
-    select id, dict_item_key, dict_item_value, delete_flag where 1 =1 
+    select id, dict_item_key, dict_item_value, delete_flag 
+    from sys_dict where 1 =1 
     and dict_key = '%s'
     and update_time between '%s' and '%s'
 ]]
@@ -223,7 +224,7 @@ local function query_dict_item_by_time(self, dict_key, fetch_start_time, fetch_e
 
     local res, err, errcode, sqlstate = db_cli:query(query_dict_sql)
     if not res then
-        log.error("query plugin configs error: ", err, ", ", errcode, ", ", sqlstate)
+        log.error("query dict configs error: ", err, ", ", errcode, ", ", sqlstate)
         return    
     end
     
@@ -253,12 +254,14 @@ function _M.query_global_rules_by_time(self, fetch_start_time, fetch_end_time)
     local global_rule_list = {}
     local global_rule_map = new_tab(0, #dict_item_list)
     for i, dict_item in ipairs(dict_item_list) do
-        local plugin_config = json.decode(dict_item.dict_item_value)
-        global_rule_list[i] = {id=dict_item.id, plugins=plugin_config}
-        global_rule_map["p" .. dict_item.id] = global_rule_list[i]
+        local conf_value = json.decode(dict_item.dict_item_value)
+        local rule = {id=dict_item.id}
+        rule[dict_item.dict_item_key] = conf_value
+        global_rule_list[i] = rule
+        global_rule_map["p" .. dict_item.id] = rule
     end
     
-    log.info("query routes list ", json.delay_encode(global_rule_list), ", ", json.delay_encode(global_rule_map))
+    log.info("query global_urles list ", json.delay_encode(global_rule_list), ", ", json.delay_encode(global_rule_map))
 
     return global_rule_list, global_rule_map
 
