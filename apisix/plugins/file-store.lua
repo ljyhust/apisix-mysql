@@ -21,6 +21,7 @@ local table  = table
 local upload = require("apisix.core.requpload")
 local req_read_body = ngx.req.read_body
 local str_find = string.find
+local str_match = string.match
 local req_get_body_file = ngx.req.get_body_file
 local file_open = io.open
 
@@ -106,6 +107,61 @@ local function check_file_upload(ctx)
     return false
 end
 
+--[[
+    读取并保存文件
+--]]
+local function read_and_store(file_path_to_store)
+    local form, err = upload:new(4096) -- 1MB buffer size
+    if not form then
+        core.log.error("failed to new upload: ", err)
+        return nil
+    end
+    -- 超时时间可以配置化
+    form:set_timeout(1000)
+
+    local file_name
+    local file
+
+    while true do
+        local typ, res, err = form:read()
+        if not typ then
+            core.log.info("failed to read ", err)
+            return nil
+        end
+    
+        if typ == "header" then
+            -- 处理文件头
+            if res[1] == "Content-Disposition" then
+                -- 获取文件名
+                local filename = str_match(res[2], 'filename="([^"]+)"')
+                if filename then
+                    file_name = filename
+                    file = file_open(file_path_to_store .. "/" .. file_name, "w+")
+                    if not file then
+                        core.log.error("failed to open file: ", file_name)
+                        return nil
+                    end
+                end
+            end
+        elseif typ == "body" then
+            -- 写入文件内容
+            if file then
+                file:write(res)
+            end
+        elseif typ == "part_end" then
+            -- 关闭文件
+            if file then
+                file:close()
+                file = nil
+            end
+        elseif typ == "eof" then
+            -- 上传结束
+            break
+        end
+    end
+    return file_path_to_store .. "/" .. file_name
+end
+
 function _M.access(conf, ctx)
     
     core.log.info("file-store start....")
@@ -119,21 +175,17 @@ function _M.access(conf, ctx)
         -- 校验判断是否文件上传类型
         core.log.info("upload type is local")
         local check_file_req = check_file_upload(ctx)
+
+        -- 获取文件并存储
+
         if check_file_req then
             -- 获取文件并存储
-            req_read_body()
             local file_name = req_get_body_file()
             core.log.info("upload_file, uri:", ctx.var.request_uri, ",file_name:", file_name)
 
+            local file_path = read_and_store(conf.localStorage.path)
+            core.log.info("upload and store file, ", file_path)
             -- local content = core.request.get_body()
-            if file_name then
-                local content = core.io.get_file()
-                core.log.info("upload_file_content ", content)
-                -- 写文件
-                local dest_file = file_open(conf.localStorage.path .. file_name, "wb")
-                dest_file.write(content)
-                dest_file.close()
-            end
             -- todo 文件不再传给下游，更改为存储路径
             
         end
