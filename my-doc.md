@@ -195,5 +195,12 @@ config-default默认加上rewrite插件，每个route配置中都可打开这个
 
 4. 测试  
 ```sh
-curl -i -F "file=@/home/jeang/logs/nacos/config.log" -H "storageConf:type=local" -H "Content-Type: multipart/form-data" http://localhost:9080/apisix-config/manage/upstream/listAll
+# 测试上传文件由apisix存储
+curl -i -F "file=@/home/jeang/logs/nacos/config.log" -H "storageConf:type=local" -H "Content-Type: multipart/form-data" http://localhost:9080/apisix-config/manage/plugin/upload
+
+# 普通由后台服务存储
+curl -i -F "file=@/home/jeang/logs/nacos/config.log" -H "Content-Type: multipart/form-data" http://localhost:9080/apisix-config/manage/plugin/upload
+
+# 其它接口无影响
+curl -X GET --location "http://localhost:9080/apisix-config/manage/upstream/listAll"
 ```

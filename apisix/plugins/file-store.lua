@@ -24,6 +24,8 @@ local str_find = string.find
 local str_match = string.match
 local req_get_body_file = ngx.req.get_body_file
 local file_open = io.open
+local tostring = tostring
+local pairs = pairs
 
 
 local schema = {
@@ -61,7 +63,7 @@ local schema = {
         keepalive_timeout = {type = "integer", minimum = 1000, default = 60000},
         keepalive_pool = {type = "integer", minimum = 1, default = 5},
     },
-    required = {"storageConf"}
+    required = {"storageConf", "localStorage"}
 }
 
 
@@ -73,7 +75,10 @@ local _M = {
 }
 
 local function split_storage_conf(str, delimiter)
-    -- body
+    if not str then
+        return nil
+    end
+
     local res = {}
     for match in (str .. delimiter):gmatch("(.-)" .. delimiter) do
         table.insert(res, match)
@@ -162,6 +167,26 @@ local function read_and_store(file_path_to_store)
     return file_path_to_store .. "/" .. file_name
 end
 
+--[[
+    form-data请求参数
+    data是table
+--]]
+local function form_data_body(data)
+    -- body
+    -- 将新的请求体编码为 multipart/form-data
+    local boundary = "----WebKitFormBoundary" .. tostring(math.random(100000, 999999))
+    local body = ""
+
+    for k, v in pairs(data) do
+        body = body .. "--" .. boundary .. "\r\n"
+        body = body .. 'Content-Disposition: form-data; name="' .. k .. '"' .. "\r\n\r\n"
+        body = body .. v .. "\r\n"
+    end
+    body = body .. "--" .. boundary .. "--\r\n"
+
+    return boundary, body
+end
+
 function _M.access(conf, ctx)
     
     core.log.info("file-store start....")
@@ -171,7 +196,7 @@ function _M.access(conf, ctx)
     local storage_headers = split_storage_conf(storageConf, "&")
 
     -- 如果是本地存储
-    if storage_headers["type"] == "local" then
+    if storage_headers and storage_headers["type"] == "local" then
         -- 校验判断是否文件上传类型
         core.log.info("upload type is local")
         local check_file_req = check_file_upload(ctx)
@@ -187,7 +212,11 @@ function _M.access(conf, ctx)
             core.log.info("upload and store file, ", file_path)
             -- local content = core.request.get_body()
             -- todo 文件不再传给下游，更改为存储路径
+            local request_body = {filePath = file_path}
+            local boundary, body = form_data_body(request_body)
             
+            core.request.set_header(ctx, "Content-type", "multipart/form-data; boundary=" .. boundary)
+            ngx.req.set_body_data(body)
         end
     end
 
