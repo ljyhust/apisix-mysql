@@ -108,30 +108,46 @@ apisix.init用ngx_tpl模板文件写入配置
 2. apisix/init.lua  handle_upstream() 方法获取上游upstream配置；
 3. apisix/init.lua  http_balancer_phase()
 
+# apisix改造及功能实现
+- [x] mysql配置化改造  
+- [x] 文件上传中转  
+- [ ] 个性化日志插件  
+- [ ] 插件注册接口  
 
-## mysql 库表结构
+## mysql配置改造
+apisix中的每个worker单独有缓存，不全局共享，mysql的配置由于是主动定时拉取，因此并不能保证每个worker的实时一致性，但在某些B端业务中仍然有其使用场景，是一个成本较低的实现方式。  
+
+### mysql 库表结构
 
 ```sql
 create schema apisix collate utf8mb4_0900_ai_ci;
 
 create table routes
 (
-	id int auto_increment comment 'primary key'
-		primary key,
-	uri varchar(255) null,
-	method_list varchar(255) default '' not null,
-	route_name varchar(64) default '' not null,
-	upstream_code varchar(32) default '' null,
-	enable_websocket tinyint default 0 not null,
-	delete_flag tinyint(1) default 0 not null,
-	create_time datetime default CURRENT_TIMESTAMP null,
-	update_time datetime default CURRENT_TIMESTAMP not null
-);
+    id               int auto_increment   primary key,
+    name             varchar(100)  default ''                null,
+    uri              varchar(4096) default ''                null comment '接口地址',
+    priority         int           default 0                 null comment '优先级',
+    methods          varchar(1024) default ''                null comment '方法集合，json_array',
+    hosts            varchar(2048) default ''                null comment '来源hosts，json_array',
+    remote_addrs     varchar(2048) default ''                null comment '客户来源IP集合，json_array',
+    vars             varchar(1024) default ''                null,
+    enable_websocket tinyint(1)    default 0                 null,
+    upstream_id      varchar(64)   default ''                null comment '上游id，关联键',
+    service_id       varchar(64)   default ''                null,
+    plugin_config_id varchar(64)   default ''                null,
+    mark_desc        varchar(256)  default ''                null,
+    status           tinyint       default 1                 null comment '状态',
+    delete_flag      tinyint(1)    default 0                 null,
+    create_time      datetime      default CURRENT_TIMESTAMP not null,
+    update_time      datetime      default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP
+)
+    comment '服务路由';
 
 
 create table upstreams
 (
-    id            int auto_increment primary key,
+    id            int auto_increment  primary key,
     name          varchar(64)   default ''                null,
     upstream_code varchar(64)   default ''                null comment '唯一标识',
     type          varchar(10)   default ''                not null,
@@ -204,3 +220,6 @@ curl -i -F "file=@/home/jeang/logs/nacos/config.log" -H "Content-Type: multipart
 # 其它接口无影响
 curl -X GET --location "http://localhost:9080/apisix-config/manage/upstream/listAll"
 ```
+
+## 个性化日志插件
+apisix日志默认为error.log，且所有级别的日志全放在一个文件中，不便于分类管理及监控，实现插件自定义打印日志：支持自定义格式、级别，每种插件只做一个级别的日志，一个文件；多种格式的日志，则配置多个插件。

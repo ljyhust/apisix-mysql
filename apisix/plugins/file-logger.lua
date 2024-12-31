@@ -91,6 +91,9 @@ if is_apisix_or then
         return handler
     end
 
+    --[[
+        把文件句柄缓存到lru中，避免多进程多次打开
+    --]]
     function open_file_cache(conf)
         local last_reopen_time = process.get_last_reopen_ms()
 
@@ -98,7 +101,7 @@ if is_apisix_or then
         if not handler then
             return nil, err
         end
-
+        -- 如果文件句柄时间 小于 进程打开时间，则表示worker进程重启过，关闭文件句柄重新打开
         if handler.open_time < last_reopen_time then
             core.log.notice("reopen cached log file: ", conf.path)
             handler.file:close()
@@ -119,8 +122,10 @@ local function write_file_data(conf, log_message)
 
     local file, err
     if open_file_cache then
+        core.log.info("require resty-apisix-process true")
         file, err = open_file_cache(conf)
     else
+        core.log.info("require resty-apisix-process false")
         file, err = io_open(conf.path, 'a+')
     end
 
@@ -149,6 +154,7 @@ function _M.body_filter(conf, ctx)
 end
 
 function _M.log(conf, ctx)
+    core.log.info("file-logger starting")
     local entry = log_util.get_log_entry(plugin_name, conf, ctx)
     write_file_data(conf, entry)
 end
