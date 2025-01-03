@@ -164,6 +164,12 @@ function _M.http_init_worker()
     if local_conf.apisix and local_conf.apisix.enable_server_tokens == false then
         ver_header = "APISIX"
     end
+
+    -- 记录worker进程启动时间
+    local shared = ngx.shared["worker-events"]
+    local start_time = ngx_now() * 1000
+    core.log.info("worker process start ", ngx.worker.pid())
+    shared:set("worker_start_time_" .. ngx.worker.pid(), start_time)
 end
 
 
@@ -172,6 +178,9 @@ function _M.http_exit_worker()
     -- in stream plugins
     plugin.exit_worker()
     require("apisix.plugins.ext-plugin.init").exit_worker()
+    -- 清除worker进程时间
+    local shared = ngx.shared["worker-events"]
+    shared:delete("worker_start_time_" .. ngx.worker.pid())
 end
 
 

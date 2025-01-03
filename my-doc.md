@@ -223,3 +223,15 @@ curl -X GET --location "http://localhost:9080/apisix-config/manage/upstream/list
 
 ## 个性化日志插件
 apisix日志默认为error.log，且所有级别的日志全放在一个文件中，不便于分类管理及监控，实现插件自定义打印日志：支持自定义格式、级别，每种插件只做一个级别的日志，一个文件；多种格式的日志，则配置多个插件。
+
+实现方式  
+1. 模板格式化文本，参考ops.lua  
+```
+{* log_time *} - INFO - {* host *} - {* request_uri *} - {* upstream *} - {* cost_time *} - {* status *}
+```
+
+2. table存储变量，tpl渲染成文本
+```lua
+local conf_render = template.compile(ngx_tpl)
+local ngxconf = conf_render(sys_conf)
+```
