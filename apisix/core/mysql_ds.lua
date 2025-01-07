@@ -255,7 +255,7 @@ function _M.query_global_rules_by_time(self, fetch_start_time, fetch_end_time)
     local global_rule_map = new_tab(0, #dict_item_list)
     for i, dict_item in ipairs(dict_item_list) do
         local conf_value = json.decode(dict_item.dict_item_value)
-        local rule = {id=dict_item.id}
+        local rule = {id=dict_item.id, delete_flag=dict_item.delete_flag}
         rule[dict_item.dict_item_key] = conf_value
         global_rule_list[i] = rule
         global_rule_map["p" .. dict_item.id] = rule

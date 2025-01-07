@@ -22,9 +22,10 @@ local ngx          =   ngx
 local ngx_now      =   ngx.now
 local io_open      =   io.open
 local shared       =   ngx.shared["worker-events"]
+local math         =   math
 
 local plugin_name = "request-logger"
-local worker_start_time = shared:get("worker_start_time_" .. ngx.worker.pid())
+local get_worker_pid = ngx.worker.pid()
 
 
 local schema = {
@@ -54,7 +55,7 @@ end
 
 
 local open_file_cache
-if worker_start_time then
+if get_worker_pid then
     -- TODO: switch to a cache which supports inactive time,
     -- so that unused files would not be cached
     local path_to_file = core.lrucache.new({
@@ -79,7 +80,7 @@ if worker_start_time then
         把文件句柄缓存到lru中，避免多进程多次打开
     --]]
     function open_file_cache(conf)
-        local last_reopen_time = worker_start_time * 1000
+        local last_reopen_time = shared:get("worker_start_time_" .. ngx.worker.pid()) * 1000
 
         local handler, err = path_to_file(conf.path, 0, open_file_handler, conf, {})
         if not handler then
@@ -102,14 +103,14 @@ end
 
 
 local function write_file_data(conf, log_message)
-    local msg = core.json.encode(log_message)
-
+    --local msg = core.json.encode(log_message)
+    local msg = log_message
     local file, err
     if open_file_cache then
-        core.log.info("require resty-apisix-process true")
+        core.log.info("cached open file")
         file, err = open_file_cache(conf)
     else
-        core.log.info("require resty-apisix-process false")
+        core.log.info("open file without cache")
         file, err = io_open(conf.path, 'a+')
     end
 
@@ -142,7 +143,7 @@ local function request_info(ctx)
     local now_time = ngx_now()
 
     local log_time = os.date("%Y-%m-%d %H:%M:%S", now_time)
-    local latency = (now_time - ngx.req.start_time()) * 1000
+    local latency = math.floor((now_time - ngx.req.start_time()) * 1000)
 
     local log =  {
         log_time = log_time,
@@ -156,6 +157,20 @@ local function request_info(ctx)
         cost_time = latency
     }
     return log
+end
+
+function _M.init()
+    -- 记录worker进程启动时间
+    local start_time = ngx_now() * 1000
+    core.log.info("worker process start ", ngx.worker.pid())
+    shared:set("worker_start_time_" .. ngx.worker.pid(), start_time)
+    -- 启动日志滚动定时任务
+end
+
+function _M.destroy()
+    -- 清除worker进程时间
+    shared:delete("worker_start_time_" .. ngx.worker.pid())
+    -- 清除定时任务
 end
 
 function _M.log(conf, ctx)

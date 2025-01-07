@@ -199,7 +199,7 @@ local function merge_change_config(start_ctime, end_ctime, old_confs, query_hand
     log.info("confs 配置变更  ", json.delay_encode(u_change_confs))
 
     if nil == old_confs or next(old_confs) == nil then
-        return u_change_confs
+        return filter_has_delete(u_change_confs)
     end
 
     log.info("增量合并: ", json.delay_encode(u_change_conf_map, true))
@@ -216,6 +216,7 @@ local function merge_change_config(start_ctime, end_ctime, old_confs, query_hand
             u_change_conf_map[key] = {}
         elseif u_change_conf_map[key] and u_change_conf_map[key].delete_flag == 1 then
             -- nothing
+            -- log.info("删除配置 ", u_change_conf_map[key])
         else
             -- 如果原来已存在，本次无更新，继承存入
             insert_tab(new_change_confs, v)

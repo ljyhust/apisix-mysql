@@ -235,3 +235,10 @@ apisix日志默认为error.log，且所有级别的日志全放在一个文件�
 local conf_render = template.compile(ngx_tpl)
 local ngxconf = conf_render(sys_conf)
 ```
+
+3. 日志滚动  
+按日期及大小滚动，如果是隔天，则滚动；如果文件大小也超过，则滚动；  
+重命名日志，并触发主进程开启原日志；  
+是否压缩命名后的日志；  
+如需要则清除旧日志（可配置化）  
+注册以上方法启动定时任务
