@@ -234,9 +234,11 @@ end
 
 --[[
 判断日志滚动条件，按日期及大小滚动，如果是隔天，则滚动；如果文件大小也超过，则滚动
+暂时废弃不用，由系统处理日志滚动
 --]]
 local function rotate()
     local file_path = LOG_PATH_CACHE
+    core.log.info("request-logger file rotate time start, file path is ", file_path)
     if not file_path then
         return
     end
@@ -248,7 +250,7 @@ local function rotate()
     if not (current_date.year == last_date.year 
         and current_date.month == last_date.month 
         and current_date.day == last_date.day) then
-        core.log("日志两次不是同一天，需要滚动")
+        core.log("前后日志两次不是同一天，需要滚动")
         rotate_file(file_path, now_time)
         last_log_rotate_date = now_time
         return
@@ -264,34 +266,12 @@ local function rotate()
 
 end
 
-function _M.init()
-    -- 记录worker进程启动时间
-    local start_time = ngx_now() * 1000
-    core.log.info("worker process start ", ngx.worker.pid())
-    shared:set("worker_start_time_" .. ngx.worker.pid(), start_time)
-    -- 启动日志滚动定时任务
-    timers.register_timer("plugin#request-logger", rotate, true)
-end
-
-function _M.destroy()
-    -- 清除worker进程时间
-    shared:delete("worker_start_time_" .. ngx.worker.pid())
-    -- 清除定时任务
-    timers.unregister_timer("plugin#request-logger", true)
-end
-
 function _M.log(conf, ctx)
     core.log.info("file-logger starting")
     local conf_render = template.compile(conf.log_format)
     local info_map = request_info(ctx)
     local entry = conf_render(info_map)
     write_file_data(conf, entry)
-
-    -- 缓存配置
-    if not LOG_PATH_CACHE then
-        LOG_PATH_CACHE = conf.path
-    end
-    LOG_FILE_MAX_SIZE = conf.log_file_max_size
 end
 
 
