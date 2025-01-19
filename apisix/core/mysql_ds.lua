@@ -41,7 +41,7 @@ _M.query_upstreams_sql_template = [[
 ]]
 
 _M.query_plugin_config_sql_tpl = [[
-    select id, plugins, delete_flag from plugin_configs where 1=1
+    select id, plugins, mark_desc AS `desc`, delete_flag from plugin_configs where 1=1
     and update_time between '%s' and '%s'
 ]]
 
