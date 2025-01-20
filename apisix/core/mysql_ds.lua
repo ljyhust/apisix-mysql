@@ -30,7 +30,7 @@ local _M = {version = 0.1}
 
 -- 按时间查询路由配置sql样本
 _M.query_routes_sql_template = [[
-    select id, uris, name, mark_desc, methods, enable_websocket, vars, upstream_id, delete_flag
+    select id, uri, name, mark_desc, methods, enable_websocket, vars, upstream_id, plugin_config_id, delete_flag
     from routes where 1=1 and update_time between '%s' and '%s'
 ]]
 

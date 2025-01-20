@@ -112,7 +112,7 @@ apisix.init用ngx_tpl模板文件写入配置
 - [x] mysql配置化改造  
 - [x] 文件上传中转  
 - [x] 个性化日志插件  
-- [ ] 插件注册接口  
+- [x] 插件注册接口  
 
 ## mysql配置改造
 apisix中的每个worker单独有缓存，不全局共享，mysql的配置由于是主动定时拉取，因此并不能保证每个worker的实时一致性，但在某些B端业务中仍然有其使用场景，是一个成本较低的实现方式。  
@@ -236,6 +236,12 @@ local conf_render = template.compile(ngx_tpl)
 local ngxconf = conf_render(sys_conf)
 ```
 
+3. 添加全局插件配置
+```sql
+insert apisix.sys_dict(dict_key, dict_item_key, dict_item_value)
+values ('global_rules', 'plugins', '{"request-logger": {"path": "logs/custom-request.log", "log_format":"{* log_time *} - INFO - {* host *} - {* request_uri *} - {* upstream *} - {* cost_time *}ms - {* status *}"}}');
+```
+
 ## 日志滚动插件，参考file-rotate.lua插件  
 按日期及大小滚动，如果是隔天，则滚动；如果文件大小也超过，则滚动；  
 重命名日志，并触发主进程开启原日志；  
@@ -250,6 +256,19 @@ local ngxconf = conf_render(sys_conf)
 实现插件注册上传和下载(文件预览)接口，插件只能注册一个方法处理接口，接口采用正则处理上传和下载；  
 采用正则注册路由并配置使用public-api插件;  
 路由配置为暴露的api路径，public-api插件中配置为文件服务插件注册的内部接口；    
-```js
-{"public-api": {"uri": "/apisix/fileServer/*"}}
+```sql
+-- 添加配置
+insert into plugin_configs(plugin_config_code, plugins, mark_desc)
+values ('file-server-api',
+        '{"public-api": {"uri": "/apisix/fileServer/*"}}',
+        '文件上传下载插件配置');
+-- 添加route
+insert int routes(name, uri, methods, plugin_config_id) values 
+('文件上传预览'， '/apisix/fileServer/*', '["GET","POST"]', #{id});
+```
+测试  
+```sh
+curl -i -F "file=@/home/jeang/logs/nacos/config.log" -H "storageConf:type=local" -H "Content-Type: multipart/form-data" http://localhost:9080/apisix/fileServer/upload
+
+curl -i http://localhost:9080/apisix/fileServer/view?file_name=config.log
 ```

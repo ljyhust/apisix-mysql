@@ -131,9 +131,9 @@ end
 
 local function file_operate_handler(ctx)
     -- 解析uri获取文件操作类型
-    local uri = ctx.var.uri
+    local uri = ngx.var.uri
     local file_opt = str_match(uri, "/([^/]+)/?$")
-
+    core.log.info("fileServer ",uri, ",operation:",file_opt)
     -- 文件上传
     if FILE_OPT_UPLOAD == file_opt then
         local is_file_upload = check_file_upload(ctx)

@@ -266,6 +266,22 @@ local function rotate()
 
 end
 
+function _M.init()
+    -- 记录worker进程启动时间
+    local start_time = ngx_now() * 1000
+    core.log.info("worker process start ", ngx.worker.pid())
+    shared:set("worker_start_time_" .. ngx.worker.pid(), start_time)
+    -- 启动日志滚动定时任务
+    -- timers.register_timer("plugin#request-logger", rotate, true)
+end
+
+function _M.destroy()
+    -- 清除worker进程时间
+    shared:delete("worker_start_time_" .. ngx.worker.pid())
+    -- 清除定时任务
+    -- timers.unregister_timer("plugin#request-logger", true)
+end
+
 function _M.log(conf, ctx)
     core.log.info("file-logger starting")
     local conf_render = template.compile(conf.log_format)
