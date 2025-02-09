@@ -594,10 +594,14 @@ http {
     {% if admin_config_server_uri then %}
     server {
         listen 127.0.0.1:9082;
+        
+        allow 127.0.0.1;
+        allow localhost;
+        deny all;
 
         location {* admin_config_server_uri *} {
 
-            proxy_pass     http://admin_config_backend;
+            proxy_pass        http://admin_config_backend;
             proxy_set_header  HOST  $host;
 
             body_filter_by_lua_block {

@@ -110,12 +110,15 @@ apisix.init用ngx_tpl模板文件写入配置
 
 # apisix改造及功能实现
 - [x] mysql配置化改造  
+- [x] 特殊代理服务实现  
 - [x] 文件上传中转  
 - [x] 个性化日志插件  
 - [x] 插件注册接口  
+- [ ] Redis配置变更通知改造
 
 ## mysql配置改造
 apisix中的每个worker单独有缓存，不全局共享，mysql的配置由于是主动定时拉取，因此并不能保证每个worker的实时一致性，但在某些B端业务中仍然有其使用场景，是一个成本较低的实现方式。  
+- [ ] 通过插件注册的接口API修改配置数据 或 查询内存中的配置
 
 ### mysql 库表结构
 
@@ -124,9 +127,10 @@ create schema apisix collate utf8mb4_0900_ai_ci;
 
 create table routes
 (
-    id               int auto_increment   primary key,
+    id               int auto_increment  primary key,
     name             varchar(100)  default ''                null,
     uri              varchar(4096) default ''                null comment '接口地址',
+    uris             varchar(4096) default ''                null comment '接口地址',
     priority         int           default 0                 null comment '优先级',
     methods          varchar(1024) default ''                null comment '方法集合，json_array',
     hosts            varchar(2048) default ''                null comment '来源hosts，json_array',
@@ -135,19 +139,19 @@ create table routes
     enable_websocket tinyint(1)    default 0                 null,
     upstream_id      varchar(64)   default ''                null comment '上游id，关联键',
     service_id       varchar(64)   default ''                null,
-    plugin_config_id varchar(64)   default ''                null,
+    plugin_config_id varchar(64)   default ''                null comment '配置ID',
     mark_desc        varchar(256)  default ''                null,
     status           tinyint       default 1                 null comment '状态',
     delete_flag      tinyint(1)    default 0                 null,
     create_time      datetime      default CURRENT_TIMESTAMP not null,
     update_time      datetime      default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP
 )
-    comment '服务路由';
+    comment '服务路由及接口';
 
 
 create table upstreams
 (
-    id            int auto_increment  primary key,
+    id            int auto_increment primary key,
     name          varchar(64)   default ''                null,
     upstream_code varchar(64)   default ''                null comment '唯一标识',
     type          varchar(10)   default ''                not null,
@@ -186,7 +190,7 @@ create table sys_dict
     delete_flag     tinyint     default 0                 not null comment '删除标识',
     update_time     datetime    default CURRENT_TIMESTAMP null on update CURRENT_TIMESTAMP
 )
-    comment 'dict';
+    comment '公共字典';
 
 ```
 ## rewrite实现  

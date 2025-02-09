@@ -122,7 +122,7 @@ local function handle_download(ctx)
         return 500, {error_msg = "server error"}
     end
 
-    -- 优化分块流试读取
+    -- 优化文件分块流读取
     local content = file:read("*a")
     file:close()
 
