@@ -2,7 +2,7 @@
 > apisix默认使用etcd存储配置，具有分布式、一致性、高并发、实时监听通知、目录存储、支持前缀遍历查询等特性，非常适合做路由配置，当配置变更时也能及时被客户端监听消费，较关系性数据库如mysql等存储更有优势。
 但在某些不涉及高并发、对于配置生效实时要求亦不高的场景，或没有条件安装etcd，可尝试使用mysql存储配置及管理，助于降低系统服务组件数量、简化系统架构。此文中笔者实现了apisix如route、upstream、plugin等主要配置mysql存储改造，自测能跑通基本功能。水平有限，不对的地方请大佬轻喷~
 
-## 基本方案
+## 概要方案
 
 
 ## 具体实现
@@ -231,5 +231,46 @@ end
 ```
 
 ### 增量配置同步
+服务缓存与数据库配置同步采用全量与增量结合的方式主动同步数据：服务启动时查询全表数据初始化缓存，注入定时任务查询增量数据与缓存对比合并。
+
+```lua
+-- 读取配置，apisix_mysql_ctime为全局参数初始化为0，表示最近更新缓存的时间
+local function read_apisix_mysql(premature, pre_mtime)
+    if premature then
+        return
+    end
+
+    local current_time = ngx.time()
+    if apisix_mysql_ctime == current_time then
+        log.info("无时间变化，不拉最新数据")
+       return 
+    end
+
+    local old_routes = nil
+    local old_upstreams = nil
+    local old_plugin_confs = nil
+    local old_global_rules = nil
+    if nil ~= apisix_mysql and next(apisix_mysql) ~= nil then
+        old_routes = apisix_mysql["routes"]
+        old_upstreams = apisix_mysql["upstreams"]
+        old_plugin_confs = apisix_mysql["plugin_configs"]
+        old_global_rules = apisix_mysql["global_rules"]
+    end
+
+    -- 增量查询并合并缓存
+    local new_routes = merge_change_routes(apisix_mysql_ctime, current_time, old_routes)
+    local new_upstreams = merge_change_upstreams(apisix_mysql_ctime, current_time, old_upstreams)
+    local new_plugin_cons = merge_change_config(apisix_mysql_ctime, current_time, old_plugin_confs, mysql_cli.query_plugin_configs_by_time)
+    local new_global_rules = merge_change_config(apisix_mysql_ctime, current_time, old_global_rules, mysql_cli.query_global_rules_by_time)
+
+    apisix_mysql.routes = new_routes
+    apisix_mysql.upstreams = new_upstreams
+    apisix_mysql.plugin_configs = new_plugin_cons
+    apisix_mysql.global_rules = new_global_rules
+
+    apisix_mysql_ctime = current_time
+    log.info("当前配置为 ", json.delay_encode(apisix_mysql, true))
+end
+```
 
 ## 自测效果
