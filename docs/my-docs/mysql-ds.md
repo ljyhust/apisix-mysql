@@ -2,8 +2,10 @@
 > apisix默认使用etcd存储配置，具有分布式、一致性、高并发、实时监听通知、目录存储、支持前缀遍历查询等特性，非常适合做路由配置，当配置变更时也能及时被客户端监听消费，较关系性数据库如mysql等存储更有优势。
 但在某些不涉及高并发、对于配置生效实时要求亦不高的场景，或没有条件安装etcd，可尝试使用mysql存储配置及管理，助于降低系统服务组件数量、简化系统架构。此文中笔者实现了apisix如route、upstream、plugin等主要配置mysql存储改造，自测能跑通基本功能。水平有限，不对的地方请大佬轻喷~
 
-## 概要方案
+## 方案简述
+apisix是基于openresty基础上扩展丰富lua脚本实现的网关组件，在openresty进程启动后的不同阶段执行对应脚本功能。master进程启动时，执行`apisix/init.lua::http_init()`模块，引入`config_mysql`配置模块执行init初次拉取配置；fork出来的子进程worker继承master进程中的内存数据，并执行`apisix/init.lua::http_init_worker() -> config_mysql.lua::init_worker()`，定时调试从mysql中拉取配置。
 
+![实现方案](./assets/mysql-ds-01)
 
 ## 具体实现
 ### mysql数据源配置
