@@ -596,7 +596,6 @@ http {
         listen 127.0.0.1:9082;
         
         allow 127.0.0.1;
-        allow localhost;
         deny all;
 
         location {* admin_config_server_uri *} {

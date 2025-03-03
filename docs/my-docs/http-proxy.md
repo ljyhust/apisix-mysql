@@ -1,0 +1,2 @@
+# apisix中的ng配置注入
+> apisix是基于openresty实现的网关组件，其启动及运行原理仍然是与原生nginx一样依赖`nginx.conf`配置；不同的是openresty在此基础上实现lua脚本扩展便于二次开发。

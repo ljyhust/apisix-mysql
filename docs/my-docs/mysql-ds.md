@@ -5,7 +5,7 @@
 ## 方案简述
 apisix是基于openresty基础上扩展丰富lua脚本实现的网关组件，在openresty进程启动后的不同阶段执行对应脚本功能。master进程启动时，执行`apisix/init.lua::http_init()`模块，引入`config_mysql`配置模块执行init初次拉取配置；fork出来的子进程worker继承master进程中的内存数据，并执行`apisix/init.lua::http_init_worker() -> config_mysql.lua::init_worker()`，定时调试从mysql中拉取配置。
 
-![实现方案](./assets/mysql-ds-01)
+![实现方案](./assets/mysql-ds-01.png)
 
 ## 具体实现
 ### mysql数据源配置
@@ -276,3 +276,34 @@ end
 ```
 
 ## 自测效果
+1. 数据库DML添加数据；
+```sql
+-- 上游服务upstreams
+INSERT INTO apisix.upstreams (id, name, upstream_code, type, nodes, retries, timeout, retry_timeout, scheme, hash_on, upstream_key, mark_desc) VALUES (1, 'apisix-config', 'apisix-config', 'roundrobin', '{"127.0.0.1:8081":100,"127.0.0.1:8082":0}', 3, '', 0, 'http', '', '', 'apisix配置管理服务');
+INSERT INTO apisix.upstreams (id, name, upstream_code, type, nodes, retries, timeout, retry_timeout, scheme, hash_on, upstream_key, mark_desc) VALUES (2, 'apisix-test', '', 'roundrobin', '{"127.0.0.1":8082}', 3, '', 0, 'http', '', '', '');
+
+-- 路由配置routes
+INSERT INTO apisix.routes (id, name, uri, uris, priority, methods, hosts, remote_addrs, vars, enable_websocket, upstream_id, service_id, plugin_config_id, mark_desc, status) VALUES (1, '路由配置', '/apisix-config/*', '["/apisix-config/*"]', 1, '[]', '', '', '', 0, '1', '', '', '路由配置', 1);
+
+-- 查询sql配置结果
+select routes.uri, u.nodes from apisix.routes
+    inner join apisix.upstreams u on routes.upstream_id = u.id
+    where routes.delete_flag=0;
+```
+
+![sql配置](./assets/query-sql-01.png)
+
+
+2. 启动代理`apisix start`，启动上游8081端口的服务;
+3. 请求接口
+```sh
+curl -i http://localhost:9082/apisix-config/manage/upstream/listAll
+```
+
+![请求结果](./assets/request-url-test01.png)
+
+4. 修改后再次请求，修改uri为`/apisix-config-xxx/*`，则无法找到路由；
+
+![修改数据](./assets/query-sql-02.png)
+
+![无效请求](./assets/request-url-test02.png)

@@ -122,6 +122,9 @@ function _M.query_routes_by_time(self, fetch_start_time, fetch_end_time)
         if route.vars then
             route.vars = json.decode(route.vars)
         end
+        if route.plugin_config_id == "" then
+            route.plugin_config_id = nil
+        end
 
         route_map["r" .. route.id] = route
     end

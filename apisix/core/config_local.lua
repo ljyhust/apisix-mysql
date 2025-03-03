@@ -58,12 +58,12 @@ end
 --                        local_conf, "apisix", "ssl", "fallback_sni") -- "a.test2.com"
 function _M.local_conf(force)
     if not force and config_data then
-        log.info("不强制读取新文件 and 存在config_data，返回config_data缓存", json.delay_encode(config_data))
+        -- log.info("不强制读取新文件 and 存在config_data，返回config_data缓存", json.delay_encode(config_data))
         return config_data
     end
 
     local default_conf, err = file.read_yaml_conf()
-    log.info("读取yaml配置,plugins...", json.delay_encode(default_conf.plguins))
+    -- log.info("读取yaml配置,plugins...", json.delay_encode(default_conf.plguins))
     if not default_conf then
         return nil, err
     end
