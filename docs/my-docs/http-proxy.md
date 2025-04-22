@@ -10,7 +10,7 @@
 ## 具体实现
 apisix的启动模块是`cli/ops.lua`，脚本中的`init() / start()`等方法对应启动命令的执行块，其中init()方法包括生成格式化的配置、生成nginx.conf文件。
 ### 模板引擎改写
-如下实现新端口代理服务，在`cli/ngx_tpl.lua`文件中的http项中增加upstream及server配置项表达式，如果存在admin_config_server_address、admin_config_server_uri参数则写入配置。
+如下实现新端口代理服务，在`cli/ngx_tpl.lua`文件中的http配置块中增加upstream及server配置项表达式，如果存在admin_config_server_address、admin_config_server_uri参数则写入配置。
 
 ```lua
 -- upstream配置表达式
@@ -58,4 +58,11 @@ deployment:
     uri: /apisix-config
 ```
 
+apisix启动后的nginx.conf配置文件  
+![启动后的配置](./assets/http-proxy-02.png)
+
 ## 自测效果
+1. 启动后端8081服务，web-context为/apisix-config；
+2. 启动apisix服务(端口为9082)，访问apisix-config服务接口
+
+![结果](./assets/http-proxy-01.png)

@@ -104,7 +104,7 @@ apisix.init用ngx_tpl模板文件写入配置
 
 9180 是admin控制面
 
-1. apisix/init.lua   http_access_phase()方法接收请求，解析uri及route；
+1. apisix/init.lua   http_access_phase()方法接收请求，解析uri及route，调用handle_upstream；
 2. apisix/init.lua  handle_upstream() 方法获取上游upstream配置；
 3. apisix/init.lua  http_balancer_phase()
 
