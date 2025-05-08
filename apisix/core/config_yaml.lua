@@ -207,7 +207,7 @@ local function sync_data(self)
                           ", it should be an object")
             end
 
-            local key = item.id or "arr_" .. i
+            local key = item.id or ("arr_" .. i)
             local conf_item = {value = item, modifiedIndex = apisix_yaml_ctime,
                             key = "/" .. self.key .. "/" .. key}
 
