@@ -37,7 +37,7 @@ local function check_file_upload(ctx)
     -- 获取请求的 Content-Type
     local content_type = core.request.header(ctx, "Content-Type")
     -- 检查是否为 multipart/form-data
-    if content_type and str_find(content_type, "multipart/form-data", 1, true) then
+    if content_type and str_find(content_type, "multipart/form-data", 1) then
         core.log.info("upload_file_check true")
         return true
     end

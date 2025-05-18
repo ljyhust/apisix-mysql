@@ -90,6 +90,7 @@ function _M.http_init_worker()
     router_ssl.init_worker()
     _M.router_ssl = router_ssl
 
+    -- 插件API接口
     _M.api = require("apisix.api_router")
 
     local global_rules, err = core.config.new("/global_rules", {
