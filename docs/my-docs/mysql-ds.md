@@ -120,9 +120,10 @@ create table routes
     remote_addrs     varchar(2048) default ''                null comment '客户来源IP集合，json_array',
     vars             varchar(1024) default ''                null,
     enable_websocket tinyint(1)    default 0                 null,
-    upstream_id      varchar(64)   default ''                null comment '上游id，关联键',
-    service_id       varchar(64)   default ''                null,
-    plugin_config_id varchar(64)   default ''                null comment '配置ID',
+    upstream_id      varchar(32)   default ''                 null comment '上游id，关联键',
+    service_id       varchar(32)   default ''                 null,
+    plugin_config_id varchar(32)   default ''                 null comment '配置ID',
+    plugins          text                                    comment '插件配置',
     mark_desc        varchar(256)  default ''                null,
     status           tinyint       default 1                 null comment '状态',
     delete_flag      tinyint(1)    default 0                 null,
@@ -130,7 +131,6 @@ create table routes
     update_time      datetime      default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP
 )
     comment '服务路由及接口';
-
 
 create table upstreams
 (

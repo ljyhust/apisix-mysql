@@ -30,7 +30,7 @@ local _M = {version = 0.1}
 
 -- 按时间查询路由配置sql样本
 _M.query_routes_sql_template = [[
-    select id, uri, name, mark_desc, methods, enable_websocket, vars, upstream_id, plugin_config_id, delete_flag
+    select id, uri, name, mark_desc, methods, enable_websocket, vars, upstream_id, plugin_config_id, plugins, delete_flag
     from routes where 1=1 and update_time between '%s' and '%s'
 ]]
 
@@ -125,7 +125,15 @@ function _M.query_routes_by_time(self, fetch_start_time, fetch_end_time)
         if route.plugin_config_id == "" then
             route.plugin_config_id = nil
         end
-
+        if route.upstream_id == "" then
+            route.upstream_id = nil
+        end
+        if route.service_id == "" then
+            route.service_id = nil
+        end
+        if route.plugins then
+            route.plugins = json.decode(route.plugins)
+        end
         route_map["r" .. route.id] = route
     end
     

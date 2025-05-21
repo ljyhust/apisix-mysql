@@ -204,18 +204,20 @@ return _M
 ### 注册路由插件配置
 接口路由`/apisix/fileServerApi/*`配置public-api插件：将access_phase阶段交由`/apisix/fileServer/*`的api实现插件处理。
 ```sql
--- 添加配置
-insert into plugin_configs(plugin_config_code, plugins, mark_desc)
-values ('file-server-api',
-        '{"public-api": {"uri": "/apisix/fileServer/*"}}',
-        '文件上传下载插件配置');
--- 添加route
-insert int routes(name, uri, methods, plugin_config_id) values 
-('文件上传预览'， '/apisix/fileServerApi/*', '["GET","POST"]', #{id});
+START TRANSACTION;
+
+-- 添加route，关联插件配置
+insert into routes(name, uri, methods, plugins) values 
+('文件上传预览', '/apisix/fileServerApi/*', '["GET","POST"]', '{"public-api": {"uri": "/apisix/fileServer/*"}}');
+COMMIT;
 ```
 
 ### 自测效果
+```bash
+curl -i -F "file=@/home/jeang/Downloads/english-01.mp3" -H "storageConf:type=local" -H "Content-Type: multipart/form-data" http://localhost:9080/apisix/fileServerApi/upload
+```
 
+![上传成功](./assets/api-plugin-02.png)
 
 ## 运行机制
-待添加图
+![运行机制](./assets/api-plugin-01.png)
